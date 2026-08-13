@@ -1,0 +1,97 @@
+/* ==========================================================================
+   STEG Facture Platform - Professional Enterprise Design System Tokens
+   ========================================================================== */
+
+:root {
+  /* Core Slate & Deep Navy Colors (Unified Professional Palette) */
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --bg-card: #1e293b;
+  --bg-glass: rgba(30, 41, 59, 0.7);
+  --bg-glass-hover: rgba(30, 41, 59, 0.9);
+
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-glow: rgba(59, 130, 246, 0.2);
+  --border-active: #3b82f6;
+
+  /* Unified Brand Accents */
+  --accent-primary: #3b82f6;    /* Cobalt Blue */
+  --accent-secondary: #64748b;  /* Slate */
+  --accent-cyan: #0ea5e9;       /* Sky Blue */
+  --accent-emerald: #10b981;    /* Success */
+  --accent-amber: #f59e0b;      /* Warning */
+  --accent-rose: #f43f5e;       /* Danger */
+  --accent-violet: #8b5cf6;     /* Purple/Accent */
+
+  /* Professional Gradients */
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --gradient-card-border: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
+  --gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  --gradient-warning: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  --gradient-danger: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
+
+  /* Text Typography */
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --text-inverse: #ffffff;
+
+  /* Font Families */
+  --font-heading: 'Outfit', -apple-system, sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-mono: 'Fira Code', monospace;
+
+  /* Elevation & Clean Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.5);
+  --shadow-neon: 0 0 15px rgba(59, 130, 246, 0.3);
+
+  /* Layout Measurements */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  --sidebar-width: 280px;
+  --topbar-height: 72px;
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-bounce: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Light Theme Mode Overrides */
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-glass-hover: rgba(255, 255, 255, 0.9);
+
+  --border-color: #e2e8f0;
+  --border-glow: rgba(59, 130, 246, 0.15);
+  --border-active: #2563eb;
+
+  --accent-primary: #2563eb;
+  --accent-secondary: #475569;
+  --accent-cyan: #0ea5e9;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-rose: #e11d48;
+  --accent-violet: #7c3aed;
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+  --text-inverse: #ffffff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.12);
+  --shadow-neon: 0 0 15px rgba(59, 130, 246, 0.15);
+}
+

@@ -1,0 +1,22 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Local environment
+.env
+venv/
+.venv/
+
+# Uploaded facture files (runtime data)
+uploads/*
+!uploads/.gitkeep
+
+# Server runtime artifacts
+server.log
+server.err.log
+server.pid
+
+# IDE
+.idea/
+.vscode/

@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STEG AI — Facture Processing & Analytics Portal</title>
+
+  <!-- SEO & Meta -->
+  <meta name="description"
+    content="Next-Generation STEG Electricity & Gas Facture Automated OCR Extraction, Verification & Power BI Analytics Platform.">
+
+  <!-- Google Fonts: Outfit (Headings), Plus Jakarta Sans (Body), Fira Code (Data) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Font Awesome 6 Pro / Free SVG Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Design System & Component Stylesheets -->
+  <link rel="stylesheet" href="front/css/variables.css">
+  <link rel="stylesheet" href="front/css/base.css">
+  <link rel="stylesheet" href="front/css/components.css">
+  <link rel="stylesheet" href="front/css/animations.css">
+  <link rel="stylesheet" href="front/css/dashboard.css">
+</head>
+
+<body>
+
+  <!-- Ambient Dynamic Gradient Mesh & Glowing Orbs -->
+  <div class="bg-mesh-grid"></div>
+  <div class="bg-glow-orb orb-1"></div>
+  <div class="bg-glow-orb orb-2"></div>
+  <div class="bg-glow-orb orb-3"></div>
+
+  <div class="app-container">
+
+    <!-- Ultra-Sleek Glass Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo-glow">
+          <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div class="sidebar-brand-meta">
+          <div class="sidebar-brand-title">STEG <span class="neon-text">INTELLIGENCE</span></div>
+          <div class="sidebar-brand-sub">ENTERPRISE OCR PLATFORM</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-menu">
+        <div class="sidebar-section-title">MAIN DASHBOARD</div>
+
+        <a href="#dashboard" class="nav-link active" data-view="dashboard">
+          <div class="nav-icon"><i class="fa-solid fa-grid-2"></i></div>
+          <span>Overview</span>
+          <span class="nav-indicator"></span>
+        </a>
+
+        <a href="#upload" class="nav-link" data-view="upload">
+          <div class="nav-icon"><i class="fa-solid fa-file-waveform"></i></div>
+          <span>Upload & Verify Bill</span>
+          <span class="pulse-dot"></span>
+        </a>
+
+        <a href="#demands" class="nav-link user-only" data-view="demands">
+          <div class="nav-icon"><i class="fa-solid fa-rectangle-history"></i></div>
+          <span>My Demands</span>
+        </a>
+
+        <a href="#admin" class="nav-link admin-only" data-view="admin" style="display: none;">
+          <div class="nav-icon"><i class="fa-solid fa-shield-check"></i></div>
+          <span>Admin Review Queue</span>
+          <span class="badge badge-pending nav-count" id="navPendingCount">1</span>
+        </a>
+
+        <a href="#ocr-admin" class="nav-link" data-view="ocr-admin">
+          <div class="nav-icon"><i class="fa-solid fa-file-lines"></i></div>
+          <span>OCR Management</span>
+        </a>
+
+        <a href="#user-admin" class="nav-link admin-only" data-view="user-admin" style="display: none;">
+          <div class="nav-icon"><i class="fa-solid fa-users-gear"></i></div>
+          <span>User Administration</span>
+        </a>
+
+        <div class="sidebar-section-title" style="margin-top: 1.75rem;">INTELLIGENCE & BI</div>
+
+        <a href="#analytics" class="nav-link" data-view="analytics">
+          <div class="nav-icon"><i class="fa-solid fa-chart-network"></i></div>
+          <span>Power BI Analytics</span>
+        </a>
+      </nav>
+
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- Top Navigation Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumb-trail">
+            <span>Platform</span> <i class="fa-solid fa-chevron-right text-muted" style="font-size:0.7rem;"></i> <strong
+              id="pageTitle" class="gradient-text">Overview</strong>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Guest Auth Trigger -->
+          <button id="btnAuthLogin" class="btn btn-glow-primary btn-sm" onclick="Auth.openAuth()"
+            style="display: none;">
+            <i class="fa-solid fa-right-to-bracket"></i> Login / Sign Up
+          </button>
+
+          <!-- Signed-In Session Pill -->
+          <button id="sessionPill" class="session-pill" type="button" onclick="Auth.openProfile()" style="display: none;">
+            <div class="session-avatar-glow" id="sessionAvatar">SR</div>
+            <span class="session-name" id="sessionName">Sami Rejeb</span>
+            <span class="btn-glass-icon btn-session-logout" title="Open account profile">
+              <i class="fa-solid fa-circle-user"></i>
+            </span>
+          </button>
+
+          <!-- Theme Mode Toggle Button (Dark / Light) -->
+          <button id="themeToggleBtn" class="btn-glass-icon" onclick="UI.toggleTheme()" title="Toggle Theme Mode">
+            <i id="themeToggleIcon" class="fa-solid fa-sun"></i>
+          </button>
+        </div>
+      </header>
+
+      <div class="content-body">
+
+        <!-- ================= VIEW 1: OVERVIEW DASHBOARD ================= -->
+        <section id="view-dashboard" class="view-section">
+
+          <!-- Hero Banner Header -->
+          <div class="hero-welcome-card animate-hero" style="margin-bottom: 2rem;">
+            <div>
+              <h1 class="hero-title">Welcome back, <span class="gradient-text" id="heroUserGreeting">Sami Rejeb</span>
+                👋</h1>
+              <p class="hero-subtitle">Automated STEG billing extraction system. Upload your electricity & gas bills for
+                real-time OCR validation and analytics.</p>
+            </div>
+            <button class="btn btn-glow-primary btn-lg" onclick="App.switchView('upload')">
+              <i class="fa-solid fa-sparkles"></i> Upload New Facture
+            </button>
+          </div>
+
+          <!-- Stat Cards Row -->
+          <div class="grid-cols-4" style="margin-bottom: 2rem;">
+
+            <div class="glass-card stat-card-glow cyan-glow">
+              <div class="stat-header">
+                <div class="stat-icon-wrap cyan">
+                  <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+                <span class="stat-badge-trend positive">+12% this month</span>
+              </div>
+              <div class="stat-value" id="statTotalFactures">0</div>
+              <div class="stat-label">Total Uploaded Factures</div>
+            </div>
+
+            <div class="glass-card stat-card-glow amber-glow">
+              <div class="stat-header">
+                <div class="stat-icon-wrap amber">
+                  <i class="fa-solid fa-clock"></i>
+                </div>
+                <span class="stat-badge-trend warning">Action Required</span>
+              </div>
+              <div class="stat-value" id="statPendingDemands">0</div>
+              <div class="stat-label">Pending Demands</div>
+            </div>
+
+            <div class="glass-card stat-card-glow emerald-glow">
+              <div class="stat-header">
+                <div class="stat-icon-wrap emerald">
+                  <i class="fa-solid fa-badge-check"></i>
+                </div>
+                <span class="stat-badge-trend success">100% Verified</span>
+              </div>
+              <div class="stat-value" id="statValidatedDemands">0</div>
+              <div class="stat-label">Validated Demands</div>
+            </div>
+
+            <div class="glass-card stat-card-glow indigo-glow">
+              <div class="stat-header">
+                <div class="stat-icon-wrap indigo">
+                  <i class="fa-solid fa-bolt"></i>
+                </div>
+                <span class="stat-badge-trend info">Normal Load</span>
+              </div>
+              <div class="stat-value" id="statTotalKwh" style="font-size: 1.6rem;">0 kWh</div>
+              <div class="stat-label">Total Energy Consumed</div>
+            </div>
+
+          </div>
+
+          <!-- Charts Grid Row -->
+          <div class="grid-cols-2" style="margin-bottom: 2rem;">
+            <div class="glass-card chart-container-card">
+              <div class="card-header-flex">
+                <div>
+                  <h3 class="card-title"><i class="fa-solid fa-chart-column text-cyan"></i> Energy Consumption History
+                  </h3>
+                  <p class="card-sub">Kilowatt-hour (kWh) progression across billing cycles</p>
+                </div>
+                <span class="badge badge-neon">kWh / Period</span>
+              </div>
+              <div class="chart-canvas-wrapper">
+                <canvas id="kwhConsumptionChart"></canvas>
+              </div>
+            </div>
+
+            <div class="glass-card chart-container-card">
+              <div class="card-header-flex">
+                <div>
+                  <h3 class="card-title"><i class="fa-solid fa-chart-pie text-indigo"></i> Financial Cost Allocation
+                  </h3>
+                  <p class="card-sub">Distribution of Electricity, Fixed Rates & TVA Tax</p>
+                </div>
+                <span class="badge badge-validated">Current Invoice</span>
+              </div>
+              <div class="chart-canvas-wrapper">
+                <canvas id="costDistributionChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Factures Data Table Card -->
+          <div class="glass-card table-card-container">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-table-list text-cyan"></i> Factures & Demands Directory
+                </h3>
+                <p class="card-sub">Live status tracking of uploaded bills, OCR validations, and admin decisions.</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="App.switchView('upload')">
+                <i class="fa-solid fa-plus"></i> New Upload
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Invoice Reference</th>
+                    <th>Billing Period</th>
+                    <th>Consumption</th>
+                    <th>Total Amount</th>
+                    <th>Due Date</th>
+                    <th>Workflow Status</th>
+                    <th style="text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="facturesTableBody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ================= VIEW 2: UPLOAD & OCR VERIFICATION WORKSPACE ================= -->
+        <section id="view-upload" class="view-section" style="display: none;">
+
+          <!-- Dropzone Card Container -->
+          <div id="factureDropzone" class="dropzone-container-glow">
+            <input type="file" id="factureFileInput" accept=".pdf,image/*" style="display: none;">
+            <div class="dropzone-pulse-circle">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <h2 class="dropzone-heading">Drop your STEG Facture PDF here</h2>
+            <p class="dropzone-sub">Supports native digital PDFs (text layer parsing) & scanned bill photos (Tesseract
+              OCR Engine)</p>
+            <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
+              <button class="btn btn-glow-primary btn-lg">
+                <i class="fa-solid fa-folder-open"></i> Browse PDF Document
+              </button>
+            </div>
+            <div id="guestLockBanner" class="guest-lock-banner" style="display: none;">
+              <i class="fa-solid fa-lock"></i> Sign in to unlock OCR extraction — guests can preview the workspace
+            </div>
+          </div>
+
+          <!-- OCR Processing Progress Card -->
+          <div id="ocrProgressCard" class="glass-card ocr-progress-wrapper" style="display: none;">
+            <div class="radar-scan-container">
+              <div class="radar-pulse"></div>
+              <i class="fa-solid fa-microchip-ai radar-icon"></i>
+            </div>
+            <h3 class="progress-title">Executing Deep OCR Pipeline</h3>
+            <p id="ocrProgressStatus" class="progress-status-code">Initializing Tesseract engine...</p>
+
+            <div class="progress-track-outer">
+              <div id="ocrProgressBar" class="progress-track-inner"></div>
+            </div>
+          </div>
+
+          <!-- Split-Screen Interactive Verification Workspace -->
+          <div id="splitVerificationContainer" class="split-view-container" style="display: none;">
+
+            <!-- Left Side: Interactive Document View with Active Highlights -->
+            <div class="document-preview-card">
+              <div class="doc-viewer-topbar">
+                <div class="doc-title-tag">
+                  <i class="fa-solid fa-file-pdf text-cyan"></i>
+                  <span>STEG_INVOICE_SOURCE.PDF</span>
+                </div>
+                <span class="badge badge-validated" id="ocrConfidenceBadge">99.4% AI Accuracy</span>
+              </div>
+
+              <div class="document-viewer-body">
+                <!-- Glowing Scanning Laser Line Beam -->
+                <div class="scanner-laser-beam"></div>
+
+                <!-- Photorealistic STEG Bill Mockup -->
+                <div class="mock-steg-bill-paper">
+
+                  <!-- Target Bounding Box Overlays -->
+                  <div class="ocr-bounding-box" data-field="invoice_no"
+                    style="top: 10%; left: 42%; width: 53%; height: 12%;" title="Invoice Number Box"></div>
+                  <div class="ocr-bounding-box" data-field="invoice_date"
+                    style="top: 24%; left: 5%; width: 90%; height: 12%;" title="Billing Period Box"></div>
+                  <div class="ocr-bounding-box" data-field="amount_excl_tax"
+                    style="top: 42%; left: 5%; width: 90%; height: 15%;" title="Amounts Breakdown Box"></div>
+                  <div class="ocr-bounding-box" data-field="amount_incl_tax"
+                    style="top: 72%; left: 45%; width: 50%; height: 20%;" title="Total Amount Due Box"></div>
+
+                  <div class="steg-bill-header">
+                    <div class="steg-brand-logo">S.T.E.G.</div>
+                    <div class="steg-bill-title">FACTURE D'ÉLECTRICITÉ<br>ET DE GAZ</div>
+                  </div>
+
+                  <div class="steg-data-row">
+                    <span class="steg-label">RÉFÉRENCE FACTURE:</span>
+                    <span class="steg-value-highlight">2026-STEG-77491</span>
+                  </div>
+
+                  <div class="steg-data-block">
+                    <div class="steg-block-title">PÉRIODE DE CONSOMMATION</div>
+                    <div>01/05/2026 AU 01/07/2026 (2 MOIS)</div>
+                  </div>
+
+                  <div class="steg-data-block yellow-block">
+                    <div class="steg-block-title">RELEVÉ DE COMPTEUR ÉLECTRIQUE</div>
+                    <div>ANCIEN INDEX: 14250 | NOUVEAU: 15480</div>
+                    <div style="font-weight: 800; color: var(--accent-cyan);">CONSOMMATION: 1230 kWh</div>
+                  </div>
+
+                  <div class="steg-data-block blue-block">
+                    <div class="steg-block-title">MONTANT GLOBAL (TND)</div>
+                    <div style="font-size: 1.25rem; font-weight: 900; color: var(--text-main);">384.450 DT</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">DATE LIMITE: 25/08/2026</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: Editable Verification & Correction Form -->
+            <div class="glass-card verification-form-card">
+              <div class="form-card-header">
+                <div>
+                  <h3 class="card-title text-cyan"><i class="fa-solid fa-shield-check"></i> Field Verification &
+                    Correction</h3>
+                  <p class="card-sub">Focusing any field automatically highlights its OCR coordinates on the document.
+                  </p>
+                </div>
+              </div>
+
+              <form id="ocrVerificationForm" class="verification-form-body">
+                <div>
+                  <div class="form-group">
+                    <label class="form-label">Supplier (Fournisseur)</label>
+                    <input type="text" id="inputSupplier" class="form-control ocr-input-field" data-field="supplier"
+                      value="STEG" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Invoice Number (N° Facture)</label>
+                    <input type="text" id="inputInvoiceNo" class="form-control ocr-input-field" data-field="invoice_no"
+                      required>
+                  </div>
+
+                  <div class="grid-cols-2">
+                    <div class="form-group">
+                      <label class="form-label">Invoice Date (Month/Year)</label>
+                      <input type="date" id="inputInvoiceDate" class="form-control ocr-input-field"
+                        data-field="invoice_date" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Currency (Devise)</label>
+                      <input type="text" id="inputCurrency" class="form-control" value="TND" readonly
+                        style="background: var(--bg-tertiary); font-weight:bold; color:var(--accent-cyan);">
+                    </div>
+                  </div>
+
+                  <div class="grid-cols-3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <div class="form-group">
+                      <label class="form-label">Amount Excl. Tax (HT)</label>
+                      <input type="number" step="0.001" id="inputAmountExclTax" class="form-control ocr-input-field"
+                        data-field="amount_excl_tax" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">TVA Tax Amount</label>
+                      <input type="number" step="0.001" id="inputTva" class="form-control ocr-input-field"
+                        data-field="amount_excl_tax" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Total Incl. Tax (TTC)</label>
+                      <input type="number" step="0.001" id="inputAmountInclTax" class="form-control ocr-input-field"
+                        data-field="amount_incl_tax" required
+                        style="font-family: var(--font-mono); font-weight:bold; color: var(--accent-emerald);">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-actions-row">
+                  <button type="button" class="btn btn-secondary"
+                    onclick="document.getElementById('splitVerificationContainer').style.display='none'; document.getElementById('factureDropzone').style.display='block';">Cancel</button>
+                  <button type="submit" class="btn btn-success" style="flex: 2;">
+                    <i class="fa-solid fa-circle-check"></i> Confirm & Save Validated Values
+                  </button>
+                </div>
+              </form>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- ================= VIEW 3: DEMANDS HISTORY (USER) ================= -->
+        <section id="view-demands" class="view-section" style="display: none;">
+          <div class="glass-card table-card-container">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-list-check text-cyan"></i> Submitted Demands Tracking</h3>
+                <p class="card-sub">Track formal administrative demands submitted to STEG administration.</p>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Demand ID</th>
+                    <th>Invoice No</th>
+                    <th>Supplier</th>
+                    <th>Amount (TTC)</th>
+                    <th>Status</th>
+                    <th>Submitted Date</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="userDemandsTableBody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 4: ADMIN REVIEW QUEUE ================= -->
+        <section id="view-admin" class="view-section" style="display: none;">
+          <div class="glass-card table-card-container" style="margin-bottom: 2rem;">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title text-amber"><i class="fa-solid fa-shield-exclamation"></i> Admin Pending Review
+                  Queue</h3>
+                <p class="card-sub">Review user-validated bill extractions, inspect values, and approve or reject.</p>
+              </div>
+              <span class="badge badge-pending">Pending Approval</span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Demand ID</th>
+                    <th>User Account</th>
+                    <th>Invoice No</th>
+                    <th>Supplier</th>
+                    <th>Amount Incl. Tax</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Decision Action</th>
+                  </tr>
+                </thead>
+                <tbody id="adminQueueTableBody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Audit Logs Traceability Card -->
+          <div class="glass-card table-card-container">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title text-cyan"><i class="fa-solid fa-rectangle-history-circle-plus"></i> System Audit
+                  Log & Audit Trail</h3>
+                <p class="card-sub">Full audit trail of user corrections and admin decision timestamps.</p>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Audit ID</th>
+                    <th>Demand ID</th>
+                    <th>Actor ID</th>
+                    <th>Action Executed</th>
+                    <th>Field & Values Changed</th>
+                    <th>Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody id="auditLogsTableBody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 5: OCR MANAGEMENT ================= -->
+        <section id="view-ocr-admin" class="view-section" style="display: none;">
+          <div class="glass-card table-card-container" style="margin-bottom: 2rem;">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title text-amber"><i class="fa-solid fa-file-invoice-dollar"></i> OCR File Management</h3>
+                <p class="card-sub">Review extracted invoice data, open the scanned file, and manage the OCR record.</p>
+              </div>
+            </div>
+
+            <form id="adminInvoiceForm" class="grid-cols-2" style="gap: 0.85rem; margin-bottom: 1rem;">
+              <input type="hidden" id="adminInvoiceId">
+              <div class="form-group">
+                <label class="form-label">User ID</label>
+                <input type="number" id="adminInvoiceUserId" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Supplier</label>
+                <input type="text" id="adminInvoiceSupplier" class="form-control" value="STEG">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Invoice No</label>
+                <input type="text" id="adminInvoiceNo" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Invoice Date</label>
+                <input type="date" id="adminInvoiceDate" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Status</label>
+                <select id="adminInvoiceStatus" class="form-control">
+                  <option value="uploaded">Uploaded</option>
+                  <option value="validated_by_user">Validated by User</option>
+                  <option value="pending">Pending</option>
+                  <option value="validated">Validated</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Amount Excl. Tax (HT)</label>
+                <input type="number" step="0.001" id="adminInvoiceAmountExclTax" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">TVA Tax</label>
+                <input type="number" step="0.001" id="adminInvoiceTva" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Amount Incl. Tax (TTC)</label>
+                <input type="number" step="0.001" id="adminInvoiceAmount" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Currency</label>
+                <input type="text" id="adminInvoiceCurrency" class="form-control" value="TND">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Consumption (kWh)</label>
+                <input type="number" step="1" min="0" id="adminInvoiceKwh" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Due Date</label>
+                <input type="date" id="adminInvoiceDueDate" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">File Path</label>
+                <input type="text" id="adminInvoicePath" class="form-control" placeholder="uploads/...">
+              </div>
+              <div style="grid-column: 1 / -1; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <button type="submit" class="btn btn-glow-primary">Save Invoice</button>
+                <button type="button" class="btn btn-secondary" onclick="Admin.resetInvoiceForm()">Clear</button>
+              </div>
+            </form>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Invoice ID</th>
+                    <th>Submitted By</th>
+                    <th>Invoice No</th>
+                    <th>Invoice Date</th>
+                    <th>Consumption</th>
+                    <th>Status</th>
+                    <th>Amount (TTC)</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminInvoicesTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 6: USER ADMINISTRATION ================= -->
+        <section id="view-user-admin" class="view-section" style="display: none;">
+          <div class="glass-card table-card-container">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title text-cyan"><i class="fa-solid fa-users-gear"></i> User Administration</h3>
+                <p class="card-sub">View every account, review verification status, and activate, reject, or ban users.</p>
+              </div>
+            </div>
+
+            <form id="adminUserForm" class="grid-cols-2" style="gap: 0.85rem; margin-bottom: 1rem;">
+              <input type="hidden" id="adminUserId">
+              <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" id="adminUserName" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="adminUserEmail" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Role</label>
+                <select id="adminUserRole" class="form-control">
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Account Status</label>
+                <select id="adminUserStatus" class="form-control">
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" id="adminUserPassword" class="form-control" placeholder="Leave blank to keep current">
+              </div>
+              <div style="grid-column: 1 / -1; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <button type="submit" class="btn btn-glow-primary">Save User</button>
+                <button type="button" class="btn btn-secondary" onclick="Admin.resetUserForm()">Clear</button>
+              </div>
+            </form>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminUsersTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 5: POWER BI ANALYTICS ================= -->
+        <section id="view-analytics" class="view-section" style="display: none;">
+          <div class="glass-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+            <div class="flex-between">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-chart-network text-cyan"></i> Power BI Embedded Consumption
+                  Intelligence</h3>
+                <p class="card-sub">SQL Server synchronized analytical reports with automated per-user Row-Level
+                  Security (RLS).</p>
+              </div>
+              <span class="badge badge-validated"><i class="fa-solid fa-database"></i> SQL Server Connected</span>
+            </div>
+          </div>
+
+          <!-- Embedded Power BI Mock Container -->
+          <div class="powerbi-embedded-frame">
+            <div class="pbi-header">
+              <div class="pbi-title">
+                <i class="fa-solid fa-bolt text-amber"></i> POWER BI SERVICE — CONSUMPTION REPORT DASHBOARD
+              </div>
+              <div class="pbi-meta">
+                DATASET: StegDB.dbo.Invoices | RLS FILTER: user_id = 'user_101'
+              </div>
+            </div>
+
+            <div class="pbi-widgets-grid">
+              <div class="pbi-widget-card">
+                <i class="fa-solid fa-gauge-high pbi-icon text-cyan"></i>
+                <div class="pbi-metric-title">Peak Usage Month</div>
+                <div class="pbi-metric-sub">Summer Period (June – August)</div>
+                <div class="pbi-metric-num text-cyan">+24.5% kWh</div>
+              </div>
+
+              <div class="pbi-widget-card">
+                <i class="fa-solid fa-coins pbi-icon text-amber"></i>
+                <div class="pbi-metric-title">Annual Expenditure Projection</div>
+                <div class="pbi-metric-sub">Estimated Total 2026</div>
+                <div class="pbi-metric-num text-amber">1,850.450 TND</div>
+              </div>
+            </div>
+
+            <div class="pbi-footer">
+              Active Power BI Embedded Session ID: 994a20b-steg-2026-prod
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Document Inspection Modal -->
+  <div id="inspectModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title gradient-text">Invoice Record Details</h3>
+        <button onclick="UI.closeModal('inspectModal')" class="btn-close-modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="inspectModalBody">
+        <!-- Injected via JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="UI.closeModal('inspectModal')">Close View</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Edit Invoice Modal -->
+  <div id="editInvoiceModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title gradient-text"><i class="fa-solid fa-pen-to-square"></i> Edit Facture Details</h3>
+        <button onclick="UI.closeModal('editInvoiceModal')" class="btn-close-modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 1rem;">
+          <i class="fa-solid fa-info-circle text-cyan"></i> Editing a facture with a submitted demand will reset its status to <strong>Pending Admin Review</strong> so the admin can re-validate your changes.
+        </p>
+        <form id="userEditInvoiceForm" onsubmit="Dashboard.saveInvoiceEdit(event)">
+          <input type="hidden" id="editInvoiceId">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;">
+            <div class="form-group">
+              <label class="form-label">Supplier</label>
+              <input type="text" id="editSupplier" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Invoice No</label>
+              <input type="text" id="editInvoiceNo" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Invoice Date</label>
+              <input type="date" id="editInvoiceDate" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Due Date</label>
+              <input type="date" id="editDueDate" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amount Excl. Tax (HT)</label>
+              <input type="number" step="0.001" id="editAmountExclTax" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">TVA Tax Amount</label>
+              <input type="number" step="0.001" id="editTva" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Total Incl. Tax (TTC)</label>
+              <input type="number" step="0.001" id="editAmountInclTax" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Consumption (kWh)</label>
+              <input type="number" step="1" id="editKwhConsumed" class="form-control" required>
+            </div>
+          </div>
+          <div class="modal-footer" style="margin-top: 1.5rem; padding: 0;">
+            <button type="button" class="btn btn-secondary" onclick="UI.closeModal('editInvoiceModal')">Cancel</button>
+            <button type="submit" class="btn btn-glow-primary"><i class="fa-solid fa-floppy-disk"></i> Save & Submit for Validation</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Profile Modal -->
+  <div id="profileModal" class="modal-overlay">
+    <div class="modal-card modal-card-auth profile-modal">
+      <div class="modal-header">
+        <h3 class="modal-title gradient-text"><i class="fa-solid fa-user-circle"></i> My Account</h3>
+        <button onclick="Auth.closeProfile()" class="btn-close-modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="profile-summary">
+          <div class="profile-avatar" id="profileAvatar">US</div>
+          <div>
+            <div class="profile-name" id="profileName">User Name</div>
+            <div class="profile-role" id="profileRole">ROLE</div>
+          </div>
+        </div>
+
+        <div class="profile-grid">
+          <div class="profile-item">
+            <span class="profile-label">Full Name</span>
+            <span class="profile-value" id="profileFullName">-</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Email</span>
+            <span class="profile-value" id="profileEmail">-</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Date Created</span>
+            <span class="profile-value" id="profileCreatedAt">-</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Role</span>
+            <span class="profile-value" id="profileRoleValue">-</span>
+          </div>
+        </div>
+
+        <form id="profileEditForm" class="auth-form" style="margin-top: 1rem;">
+          <div class="form-group">
+            <label class="form-label">Edit Full Name</label>
+            <input type="text" id="profileFullNameInput" class="form-control" placeholder="Your full name" required>
+          </div>
+          <button type="submit" class="btn btn-glow-primary" style="width: 100%;">
+            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+          </button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="Auth.closeProfile()">Close</button>
+        <button class="btn btn-glow-primary" onclick="Auth.logout()">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Authentication Modal (Login / Sign Up) -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal-card modal-card-auth">
+      <div class="modal-header">
+        <h3 class="modal-title gradient-text"><i class="fa-solid fa-bolt-lightning"></i> STEG Access Portal</h3>
+        <button onclick="Auth.closeAuth()" class="btn-close-modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="authErrorBox" class="auth-error-box" style="display: none;"></div>
+        <div class="auth-tabs">
+          <button class="auth-tab-btn active" data-auth-tab="login" onclick="Auth.switchAuthTab('login')">Login</button>
+          <button class="auth-tab-btn" data-auth-tab="register" onclick="Auth.switchAuthTab('register')">Sign
+            Up</button>
+        </div>
+
+        <form id="loginForm" class="auth-form" autocomplete="on">
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="loginEmail" class="form-control" placeholder="you@example.tn" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-glow-primary btn-lg" style="width: 100%;">
+            <i class="fa-solid fa-right-to-bracket"></i> Sign In
+          </button>
+        </form>
+
+        <form id="registerForm" class="auth-form" style="display: none;" autocomplete="on">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="registerName" class="form-control" placeholder="Your full name" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="registerEmail" class="form-control" placeholder="you@example.tn" required>
+          </div>
+          <div class="grid-cols-2" style="grid-template-columns: 1fr 1fr; gap: 0.85rem;">
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" id="registerPassword" class="form-control" placeholder="Min. 6 chars" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password</label>
+              <input type="password" id="registerConfirm" class="form-control" placeholder="Repeat password" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-glow-primary btn-lg" style="width: 100%;">
+            <i class="fa-solid fa-user-plus"></i> Create Account
+          </button>
+        </form>
+
+        <div class="auth-guest-action">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="Auth.continueAsGuest()">
+            <i class="fa-solid fa-user-secret"></i> Continue as Guest
+          </button>
+        </div>
+
+        <p class="auth-hint">
+          <i class="fa-solid fa-circle-info"></i> Demo accounts — password <span
+            style="font-family: var(--font-mono);">demo123</span><br>
+          <span style="font-family: var(--font-mono);">sami.rejeb@steg.tn</span> (user) · <span
+            style="font-family: var(--font-mono);">admin.validation@steg.tn</span> (admin)
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="front/js/ui-utils.js"></script>
+  <script src="front/js/ocr-simulator.js"></script>
+  <script src="front/js/auth.js"></script>
+  <script src="front/js/dashboard.js"></script>
+  <script src="front/js/admin.js"></script>
+  <script src="front/js/app.js"></script>
+</body>
+
+</html>
