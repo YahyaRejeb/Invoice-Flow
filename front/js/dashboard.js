@@ -19,7 +19,7 @@ const Dashboard = {
   },
 
   async fetchDataFromBackend() {
-    if (!window.Auth || Auth.isGuest()) return;
+    if (!window.Auth || !Auth.isAuthenticated()) return;
 
     try {
       // 1. Fetch user's invoices from SQL Server via FastAPI
@@ -31,6 +31,7 @@ const Dashboard = {
         this.factures = (invData.invoices || []).map(i => ({
           id: i.invoice_id,
           supplier: i.supplier || "STEG",
+          address: i.address || "",
           invoice_no: i.invoice_no || `INV-${i.invoice_id}`,
           invoice_date: i.invoice_date || i.uploaded_at?.split('T')[0] || null,
           amount_excl_tax: i.amount_excl_tax || 0,
@@ -95,8 +96,8 @@ const Dashboard = {
 
     const statusBadgeMap = {
       uploaded: '<span class="badge badge-uploaded"><i class="fa-solid fa-cloud-arrow-up"></i> Uploaded</span>',
-      validated_by_user: '<span class="badge badge-validated_by_user"><i class="fa-solid fa-user-check"></i> User Verified</span>',
       pending: '<span class="badge badge-pending"><i class="fa-solid fa-hourglass-half"></i> Admin Pending</span>',
+      approved: '<span class="badge badge-validated"><i class="fa-solid fa-circle-check"></i> Approved</span>',
       validated: '<span class="badge badge-validated"><i class="fa-solid fa-circle-check"></i> Approved</span>',
       rejected: '<span class="badge badge-rejected"><i class="fa-solid fa-circle-xmark"></i> Rejected</span>'
     };
@@ -122,7 +123,7 @@ const Dashboard = {
           <button class="btn btn-danger btn-sm" onclick="Dashboard.deleteInvoice('${f.id}')" title="Delete Facture" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">
             <i class="fa-solid fa-trash-can"></i>
           </button>
-          ${f.status === 'validated_by_user' ? `
+          ${!f.raw_demand_id && f.status !== 'pending' && f.status !== 'approved' && f.status !== 'validated' && f.status !== 'rejected' ? `
             <button class="btn btn-primary btn-sm" onclick="Dashboard.submitDemand('${f.id}')">
               <i class="fa-solid fa-paper-plane"></i> Submit Demand
             </button>
@@ -204,19 +205,20 @@ const Dashboard = {
 
   // Save User Validated OCR Fields (Persisted to backend if server available)
   async saveUserValidation(factureData) {
-    factureData.status = 'validated_by_user';
+    factureData.status = 'uploaded';
 
     if (factureData.id && typeof factureData.id === 'number') {
       try {
         const payload = {
           supplier: factureData.supplier,
+          address: factureData.address || null,
           invoice_no: factureData.invoice_no,
           invoice_date: factureData.invoice_date,
           amount_excl_tax: factureData.amount_excl_tax,
           tva: factureData.tva,
           amount_incl_tax: factureData.amount_incl_tax,
           currency: factureData.currency || 'TND',
-          kwh_consumed: factureData.kwh_consumed || 1200,
+          kwh_consumed: factureData.kwh_consumed || 0,
           due_date: factureData.due_date || factureData.invoice_date
         };
         const res = await Auth.apiFetch(`/invoices/${factureData.id}/values`, {
@@ -225,14 +227,19 @@ const Dashboard = {
         });
         if (res.ok) {
           await this.fetchDataFromBackend();
-          UI.showToast(`Invoice ${factureData.invoice_no} saved to StegDB!`, 'success');
-          return;
+          if (window.Admin) window.Admin.fetchQueueFromBackend();
+          UI.showToast(`Invoice ${factureData.invoice_no} confirmed & submitted to Admin Queue!`, 'success');
+          return true;
         }
+        const err = await res.json().catch(() => ({}));
+        UI.showToast(err.detail || 'Could not save invoice values.', 'danger');
       } catch (e) {
         console.warn('Backend update failed', e);
         UI.showToast('Backend unreachable — values not saved', 'danger');
       }
     }
+
+    return false;
   },
 
   // Submit Demand for Admin Approval (Connected to /demands POST)
@@ -268,7 +275,7 @@ const Dashboard = {
 
     let item = this.factures.find(f => f.id == factureId);
 
-    if (!item && window.Auth && !Auth.isGuest()) {
+    if (!item && window.Auth && Auth.isAuthenticated()) {
       try {
         const res = await Auth.apiFetch(`/invoices/${factureId}`);
         if (res.ok) {
@@ -276,6 +283,7 @@ const Dashboard = {
           item = {
             id: i.invoice_id,
             supplier: i.supplier || "STEG",
+            address: i.address || "",
             invoice_no: i.invoice_no || `INV-${i.invoice_id}`,
             invoice_date: i.invoice_date || i.uploaded_at?.split('T')[0] || null,
             amount_excl_tax: i.amount_excl_tax || 0,
@@ -301,11 +309,13 @@ const Dashboard = {
     }
 
     const formatDateForInput = (dStr) => dStr ? String(dStr).split('T')[0] : '';
+    const formatDateForMonthInput = (dStr) => dStr ? String(dStr).split('T')[0].substring(0, 7) : '';
 
     document.getElementById('editInvoiceId').value = item.id;
     document.getElementById('editSupplier').value = item.supplier || 'STEG';
+    document.getElementById('editAddress').value = item.address || '';
     document.getElementById('editInvoiceNo').value = item.invoice_no || '';
-    document.getElementById('editInvoiceDate').value = formatDateForInput(item.invoice_date);
+    document.getElementById('editInvoiceDate').value = formatDateForMonthInput(item.invoice_date);
     document.getElementById('editDueDate').value = formatDateForInput(item.due_date);
     document.getElementById('editAmountExclTax').value = item.amount_excl_tax || 0;
     document.getElementById('editTva').value = item.tva || 0;
@@ -320,10 +330,16 @@ const Dashboard = {
     const invoiceId = document.getElementById('editInvoiceId').value;
     if (!invoiceId) return;
 
+    let dateVal = document.getElementById('editInvoiceDate').value;
+    if (dateVal && dateVal.length === 7) {
+      dateVal += '-01';
+    }
+
     const payload = {
       supplier: document.getElementById('editSupplier').value,
+      address: document.getElementById('editAddress').value.trim() || null,
       invoice_no: document.getElementById('editInvoiceNo').value,
-      invoice_date: document.getElementById('editInvoiceDate').value,
+      invoice_date: dateVal || null,
       due_date: document.getElementById('editDueDate').value || null,
       amount_excl_tax: parseFloat(document.getElementById('editAmountExclTax').value) || 0,
       tva: parseFloat(document.getElementById('editTva').value) || 0,
@@ -430,6 +446,7 @@ const Dashboard = {
             <h4 style="margin-bottom:1rem; color:var(--accent-cyan);" class="gradient-text">Invoice Financial Breakdown</h4>
             <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
               <tr><td style="padding:0.5rem 0; color:var(--text-muted);">Supplier:</td><td><strong>${item.supplier}</strong></td></tr>
+              <tr><td style="padding:0.5rem 0; color:var(--text-muted);">Address:</td><td><strong>${item.address || '-'}</strong></td></tr>
               <tr><td style="padding:0.5rem 0; color:var(--text-muted);">Invoice No:</td><td><strong>${item.invoice_no}</strong></td></tr>
               <tr><td style="padding:0.5rem 0; color:var(--text-muted);">Invoice Date:</td><td>${item.invoice_date}</td></tr>
               <tr><td style="padding:0.5rem 0; color:var(--text-muted);">Amount Excl. Tax (HT):</td><td>${UI.formatTND(item.amount_excl_tax)}</td></tr>

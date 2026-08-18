@@ -63,6 +63,7 @@ class Invoice(Base):
     supplier: Mapped[str] = mapped_column(
         String(100), nullable=False, server_default=text("'STEG'")
     )
+    address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     invoice_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
     invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     amount_excl_tax: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)

@@ -60,12 +60,12 @@ def login(payload: LoginRequest, db: DbDep):
     if user.account_status == "pending":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account is awaiting admin approval. Please try again once it is verified.",
+            detail="Your account is pending activation. Please wait for an administrator to activate your account.",
         )
     if user.account_status == "inactive":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account has been deactivated. Contact an administrator.",
+            detail="Your account has been deactivated. Please contact an administrator.",
         )
     return _auth_response(user, access_token=create_access_token(user.user_id, user.role))
 

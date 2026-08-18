@@ -1,1167 +1,532 @@
-# Backend Functional Guide
+# Backend Architecture & Functional Guide
 
-This document explains what each backend file does, what each main function is responsible for, and gives a concrete example for every definition.
-
-## 1. Overall purpose of the backend
-
-The backend is a FastAPI application for managing invoice processing, authentication, demand submission, admin review, dashboard statistics, and audit logging.
-
-It supports:
-- user registration and login
-- invoice upload and validation
-- demand submission for validated invoices
-- admin approval/rejection of demands
-- dashboard insights for users and admins
-- audit trails for important workflow changes
+This document provides a comprehensive, deep-dive reference for the STEG InvoiceFlow FastAPI backend. It details the purpose of each file, the exact function signatures, **what activates/triggers each function**, **why specific methods/patterns were chosen**, and **concrete usage examples**.
 
 ---
 
-## 2. Backend folder structure
+## 1. Core Architecture & Stack Rationale
 
-- [back/main.py](back/main.py) — application entry point and router registration
-- [back/config.py](back/config.py) — app configuration, environment variables, and database settings
-- [back/database.py](back/database.py) — DB engine, sessions, migrations, and initialization
-- [back/deps.py](back/deps.py) — authentication and authorization dependencies
-- [back/models.py](back/models.py) — SQLAlchemy database models
-- [back/schemas.py](back/schemas.py) — Pydantic request and response models
-- [back/security.py](back/security.py) — password hashing and JWT handling
-- [back/services.py](back/services.py) — file storage and audit logging helpers
-- [back/seed.py](back/seed.py) — demo seed data for users and invoices
-- [back/run.py](back/run.py) — simple startup script for running the app
-- [back/routers/auth.py](back/routers/auth.py) — authentication endpoints
-- [back/routers/invoices.py](back/routers/invoices.py) — invoice endpoints
-- [back/routers/demands.py](back/routers/demands.py) — demand workflow endpoints
-- [back/routers/admin.py](back/routers/admin.py) — admin review and audit endpoints
-- [back/routers/dashboard.py](back/routers/dashboard.py) — dashboard statistics endpoints
+The backend is built as a high-performance REST API connected to an enterprise SQL Server database (via LocalDB `MSSQLLocalDB` or standalone SQL Server instances).
+
+### Technology Selection Rationale:
+- **FastAPI**: Chosen over Flask/Django for high-performance asynchronous request handling, automatic OpenAPI schema generation, strict type safety via Python type annotations, and built-in dependency injection (`Depends`).
+- **SQLAlchemy ORM (v2.0)**: Selected to decouple database logic from raw SQL string manipulations while maintaining full support for enterprise SQL Server features (ODBC connectivity, transactions, foreign key cascades).
+- **Pydantic (v2.0)**: Used for strong request payload parsing and response serialization, guaranteeing that incoming JSON payload structures strictly conform to application domain models.
+- **PyJWT & Bcrypt**: Implemented for stateless, scalable authentication. Passwords are hashed using salted bcrypt key derivation (`bcrypt.gensalt()`), and user sessions are managed statelessly via signed JWT bearer tokens (`HS256`).
+- **PyTesseract & Poppler-utils**: Integrated for document OCR preprocessing and text recognition, extracting billing figures directly from digital and scanned PDF/image invoices.
 
 ---
 
-## 3. File-by-file explanation
+## 2. Backend Folder & File Structure
 
-### [back/main.py](back/main.py)
-
-This is the main FastAPI application file.
-
-Functions:
-
-- `lifespan(_app)`
-  - Runs when the app starts.
-  - Initializes the database.
-  - Optionally seeds demo data if the configuration allows it.
-  - Ensures the backend is ready before serving requests.
-
-> **Example.** The lifespan runs automatically when you start the server:
-> ```python
-> from main import app          # app = FastAPI(lifespan=lifespan)
-> uvicorn.run(app, host="127.0.0.1", port=8000)
-> ```
-> On startup it calls `init_db()` and, because `settings.SEED` is `True` by default, runs `seed(db)` (which creates the demo accounts and invoices).
-
-- `health()`
-  - Returns a simple health-check response.
-  - Used to verify the backend is running.
-  - Response contains status, service name, and version.
-
-> **Example.** `GET /health`
-> ```bash
-> curl http://127.0.0.1:8000/health
-> ```
-> ```json
-> {"status": "ok", "service": "steg-backend", "version": "1.0.0"}
-> ```
-
-- `index()`
-  - Serves the root page of the application.
-  - Returns the main HTML page so the frontend can load.
-
-> **Example.** `GET /` returns the raw HTML of `index.html`:
-> ```bash
-> curl http://127.0.0.1:8000/
-> ```
-> Response is `FileResponse(INDEX_FILE)` — the HTML document rendered by the browser.
-
-What the file does overall:
-- Creates the FastAPI app.
-- Enables CORS for frontend requests.
-- Registers all router modules (`/auth`, `/invoices`, `/demands`, `/admin`, `/dashboard`).
-- Exposes the health endpoint.
-- Serves the frontend assets (`/front`, `/assets`), uploaded files (`/uploads`), and the root page.
+```
+back/
+├── config.py           # Central configuration & environment variables
+├── database.py         # DB engine setup, session management & schema migrations
+├── deps.py             # Auth & Role-Based Access Control (RBAC) dependencies
+├── main.py             # FastAPI entry point, lifespan hooks & static routing
+├── models.py           # SQLAlchemy ORM database models
+├── ocr_service.py      # Tesseract OCR extraction engine & regex parser
+├── requirements.txt    # Python package dependencies
+├── run.py              # Application startup script
+├── schemas.py          # Pydantic request/response validation schemas
+├── security.py         # Bcrypt password hashing & JWT token handling
+├── seed.py             # Idempotent seed script for demo accounts & invoices
+├── services.py         # Shared file storage & audit logging helper services
+└── routers/
+    ├── admin.py        # Admin review queue, user management & audit logs
+    ├── auth.py         # User registration, login & profile endpoints
+    ├── dashboard.py    # User dashboard statistics & analytical aggregations
+    ├── demands.py      # Invoice demand creation & submission endpoints
+    └── invoices.py     # Invoice upload, OCR triggering & value persistence
+```
 
 ---
 
-### [back/config.py](back/config.py)
-
-This file stores configuration values for the whole backend.
-
-Functions:
-
-- `_detect_db_server()`
-  - Returns the configured SQL Server host, defaulting to **LocalDB `MSSQLLocalDB`** (`(localdb)\MSSQLLocalDB`).
-  - Used when no database server is explicitly configured via `STEG_DB_SERVER`.
-  - Helps the app run on Windows environments without manual SQL Server Express setup.
-
-> **Example.**
-> ```python
-> from config import _detect_db_server
-> print(_detect_db_server())            # -> "(localdb)\MSSQLLocalDB" (default)
-> # With an environment variable set:
-> # STEG_DB_SERVER="SQLSRV01" python -c "from config import _detect_db_server; print(_detect_db_server())"
-> # -> "SQLSRV01"
-> ```
-
-Class:
-
-- `Settings`
-  - Holds all configurable settings such as:
-    - database server name
-    - database name
-    - JWT secret and expiration
-    - upload size limits
-    - allowed upload file extensions
-    - role names and workflow statuses
-    - host and port for the server
-    - whether seeding is enabled
-  - Provides `_odbc_connect(database)` to build a Windows-trusted ODBC connection string for a given database.
-  - Provides properties `database_url` and `master_url` so the app can connect to SQL Server via SQLAlchemy using `mssql+pyodbc:///?odbc_connect=...` (quote_plus-encoded ODBC string). This works for LocalDB and regular instances alike.
-
-> **Example.** Reading settings and the generated connection URLs:
-> ```python
-> from config import settings
->
-> settings.DB_NAME            # -> "StegDB"
-> settings.MAX_UPLOAD_MB      # -> 10
-> settings.ALLOWED_UPLOAD_EXTENSIONS  # -> {".pdf", ".png", ".jpg", ".jpeg", ".webp"}
-> settings.ROLES              # -> {"user", "admin"}
-> settings.JWT_EXPIRE_MINUTES # -> 720
->
-> print(settings.database_url)
-> # mssql+pyodbc:///?odbc_connect=DRIVER%3D%7BODBC+Driver+18+for+SQL+Server%7D%3B...Trusted_Connection%3Dyes%3BTrustServerCertificate%3Dyes
->
-> print(settings.master_url)
-> # mssql+pyodbc:///?odbc_connect=DRIVER%3D%7BODBC+Driver+18+for+SQL+Server%7D%3B...DATABASE%3Dmaster...
-> ```
-
-What the file does overall:
-- Centralizes application settings.
-- Keeps sensitive or environment-specific values out of the code.
-- Makes the project easier to configure across environments.
+## 3. Comprehensive File-by-File & Function-by-Function Reference
 
 ---
 
-### [back/database.py](back/database.py)
+### 3.1 `back/main.py`
 
-This file manages the database connection and startup setup.
-
-Variables and objects:
-
-- `Base`
-  - SQLAlchemy declarative base used for all ORM models.
-
-> **Example.** Every model inherits from `Base`:
-> ```python
-> class User(Base):   # Base = database.Base
->     __tablename__ = "Users"
->     ...
-> ```
-
-- `engine`
-  - SQLAlchemy database engine.
-  - Connects to the configured SQL Server database (LocalDB `MSSQLLocalDB` by default via `settings.database_url`).
-
-> **Example.** `engine` is built from `settings.database_url` with connection timeouts and connection-pool recycling:
-> ```python
-> engine = create_engine(settings.database_url, pool_pre_ping=True, pool_recycle=1800, ...)
-> ```
-
-- `SessionLocal`
-  - Session factory used to create database sessions.
-
-> **Example.**
-> ```python
-> db = SessionLocal()          # open a new session
-> db.add(some_invoice)
-> db.commit()
-> db.close()                   # always close when done
-> ```
-
-Functions:
-
-- `get_db()`
-  - FastAPI dependency that creates a DB session for each request.
-  - Ensures the session is closed properly after the request finishes.
-
-> **Example.** Used as a FastAPI dependency in every router:
-> ```python
-> from database import get_db
->
-> @router.get("/mine")
-> def list_my_invoices(db: Session = Depends(get_db)):
->     ...   # db is auto-created and auto-closed by FastAPI
-> ```
-
-- `_ensure_database_exists()`
-  - Checks whether the target database already exists.
-  - Creates the database if it is missing.
-
-> **Example.** First run against a fresh SQL Server:
-> ```
-> INFO steg.database: Created database StegDB
-> ```
-> On subsequent runs the database already exists, so it is a no-op.
-
-- `run_migrations()`
-  - Applies additive schema changes safely.
-  - Adds missing columns if they are not present.
-  - Designed to be safe to run repeatedly.
-  - **Includes a backfill migration** that maps the legacy `Users.status` column to the new `account_status`:
-    - `status = 'active'` → `account_status = 'active'` (keeps existing active users active).
-    - `status = 'waiting'` or `NULL` → stays `pending` (default), requiring admin approval.
-  - **Switches timestamp column defaults from UTC to local server time** by dropping any existing default constraint on `Users.created_at`, `Invoices.uploaded_at`, `Demands.submitted_at`, and `AuditLogs.timestamp`, then adding `DEFAULT (getdate())`. This ensures manual/SSMS inserts also get the local clock hour.
-
-> **Example.** It runs each idempotent SQL statement in `MIGRATIONS`:
-> ```sql
-> -- Add missing columns to Invoices
-> IF COL_LENGTH('dbo.Invoices', 'kwh_consumed') IS NULL
-> ALTER TABLE [Invoices] ADD [kwh_consumed] INT NULL;
-> IF COL_LENGTH('dbo.Invoices', 'due_date') IS NULL
-> ALTER TABLE [Invoices] ADD [due_date] DATE NULL;
->
-> -- Add account_status to Users
-> IF COL_LENGTH('dbo.Users', 'account_status') IS NULL
-> ALTER TABLE [Users] ADD [account_status] NVARCHAR(30) NOT NULL
->   CONSTRAINT [DF_Users_account_status] DEFAULT 'pending';
->
-> -- Backfill: legacy status='active' -> account_status='active'
-> IF COL_LENGTH('dbo.Users', 'account_status') IS NOT NULL
-> AND COL_LENGTH('dbo.Users', 'status') IS NOT NULL
-> UPDATE [Users] SET [account_status] = 'active' WHERE [status] = 'active';
->
-> -- Switch timestamp defaults to local time (getdate)
-> DECLARE @cn sysname;
-> SELECT @cn = dc.name FROM sys.default_constraints dc
-> JOIN sys.columns c ON c.default_object_id = dc.object_id
-> WHERE dc.parent_object_id = OBJECT_ID('dbo.Users') AND c.name = 'created_at';
-> IF @cn IS NOT NULL EXEC('ALTER TABLE [dbo].[Users] DROP CONSTRAINT [' + @cn + ']');
-> ALTER TABLE [dbo].[Users] ADD CONSTRAINT [DF_Users_created_at_local] DEFAULT (getdate()) FOR [created_at];
-> 
-> DECLARE @cn sysname;
-> SELECT @cn = dc.name FROM sys.default_constraints dc
-> JOIN sys.columns c ON c.default_object_id = dc.object_id
-> WHERE dc.parent_object_id = OBJECT_ID('dbo.Invoices') AND c.name = 'uploaded_at';
-> IF @cn IS NOT NULL EXEC('ALTER TABLE [dbo].[Invoices] DROP CONSTRAINT [' + @cn + ']');
-> ALTER TABLE [dbo].[Invoices] ADD CONSTRAINT [DF_Invoices_uploaded_at_local] DEFAULT (getdate()) FOR [uploaded_at];
-> 
-> DECLARE @cn sysname;
-> SELECT @cn = dc.name FROM sys.default_constraints dc
-> JOIN sys.columns c ON c.default_object_id = dc.object_id
-> WHERE dc.parent_object_id = OBJECT_ID('dbo.Demands') AND c.name = 'submitted_at';
-> IF @cn IS NOT NULL EXEC('ALTER TABLE [dbo].[Demands] DROP CONSTRAINT [' + @cn + ']');
-> ALTER TABLE [dbo].[Demands] ADD CONSTRAINT [DF_Demands_submitted_at_local] DEFAULT (getdate()) FOR [submitted_at];
-> 
-> DECLARE @cn sysname;
-> SELECT @cn = dc.name FROM sys.default_constraints dc
-> JOIN sys.columns c ON c.default_object_id = dc.object_id
-> WHERE dc.parent_object_id = OBJECT_ID('dbo.AuditLogs') AND c.name = 'timestamp';
-> IF @cn IS NOT NULL EXEC('ALTER TABLE [dbo].[AuditLogs] DROP CONSTRAINT [' + @cn + ']');
-> ALTER TABLE [dbo].[AuditLogs] ADD CONSTRAINT [DF_AuditLogs_timestamp_local] DEFAULT (getdate()) FOR [timestamp];
-> ```
-> Re-running it never fails because the `IF COL_LENGTH(...) IS NULL` guards prevent duplicate columns, and the default-constraint swap is idempotent (drop + re-add).
-
-- `init_db()`
-  - Runs the full startup database bootstrap.
-  - Creates the uploads folder.
-  - Ensures the database exists.
-  - Imports models so ORM metadata is registered.
-  - Creates missing tables via `Base.metadata.create_all()`.
-  - Applies additive migrations.
-
-> **Example.** Called from the app lifespan at startup:
-> ```python
-> init_db()
-> # logs:
-> # INFO steg.database: Created database StegDB
-> # INFO steg.database: Schema migrations applied
-> # INFO steg.database: StegDB ready
-> ```
-
-What the file does overall:
-- Connects the backend to SQL Server (LocalDB `MSSQLLocalDB` by default).
-- Makes database access available to the app.
-- Keeps the schema compatible with the frontend via idempotent migrations.
+**File Overview**:
+Serves as the root entry point for the FastAPI server. It initializes the app instance, registers CORS middleware, configures static asset serving (frontend and upload storage), handles application lifecycle hooks (startup/shutdown), and mounts router endpoints.
 
 ---
 
-### [back/deps.py](back/deps.py)
-
-This file contains reusable authentication dependencies.
-
-Functions:
-
-- `get_current_user(...)`
-  - Reads the bearer token from the request.
-  - Validates and decodes the JWT.
-  - Loads the corresponding user from the database.
-  - Rejects requests if the token is missing, invalid, expired, or points to a deleted user.
-
-> **Example.** Used to protect a route:
-> ```python
-> from deps import get_current_user
->
-> @router.get("/me", response_model=UserOut)
-> def me(current_user: User = Depends(get_current_user)):
->     return current_user
-> ```
-> Calling it without a token:
-> ```bash
-> curl http://127.0.0.1:8000/auth/me
-> ```
-> ```json
-> {"detail": "Missing authentication token"}
-> ```
-> With a valid token:
-> ```bash
-> curl -H "Authorization: Bearer <JWT>" http://127.0.0.1:8000/auth/me
-> ```
-
-- `require_admin(...)`
-  - Ensures that only users with the admin role can call protected admin routes.
-  - Returns the current user if authorized.
-  - Throws a 403 error for non-admin users.
-
-> **Example.**
-> ```python
-> from deps import require_admin
->
-> @router.get("/admin/audit")
-> def admin_audit_logs(admin: User = Depends(require_admin)):
->     ...
-> ```
-> A regular user calling an admin route gets:
-> ```json
-> {"detail": "Administrator privileges required"}
-> ```
-
-What the file does overall:
-- Enforces authentication and role-based access control.
-- Keeps authorization logic centralized and reusable.
-
----
-
-### [back/models.py](back/models.py)
-
-This file defines the SQLAlchemy ORM models.
-
-Classes:
-
-- `User`
-  - Represents an application user.
-  - Stores full name, email, password hash, role, and creation timestamp.
-  - Has relationships to invoices and demands.
-
-> **Example.** Creating a user row through the ORM:
-> ```python
-> user = User(full_name="Sami Rejeb", email="sami@steg.tn",
->             password_hash=hash_password("secret123"), role="user", account_status="active")
-> db.add(user); db.commit(); db.refresh(user)
-> print(user.user_id)   # -> 1
-> ```
-> | user_id | full_name   | email          | role  | account_status | created_at |
-> |--------:|-------------|----------------|-------|----------------|------------|
-> |       1 | Sami Rejeb  | sami@steg.tn   | user  | active         | 2026-08-11 ... |
-
-- `Invoice`
-  - Represents one uploaded invoice.
-  - Stores the file path, supplier information, invoice numbers, dates, tax values, amount, currency, energy used, due date, and status.
-  - Links to one user and optionally one demand.
-  - Has a property `file_name` that extracts the file name from the stored path.
-
-> **Example.**
-> ```python
-> invoice = Invoice(user_id=1, file_path="uploads/ab12cd34.pdf")
-> db.add(invoice); db.commit()
->
-> print(invoice.file_name)          # -> "ab12cd34.pdf"  (from the stored path)
-> print(invoice.status)             # -> "uploaded"      (server default)
-> print(invoice.currency)           # -> "TND"           (server default)
-> ```
-> | invoice_id | user_id | file_path        | supplier | status   |
-> |-----------:|--------:|------------------|----------|----------|
-> |          1 |       1 | uploads/ab12cd34.pdf | STEG  | uploaded |
-
-- `Demand`
-  - Represents a formal demand submitted for an invoice.
-  - Stores status, submission time, reviewer, and review time.
-  - Links to the invoice, requester, and audit logs.
-
-> **Example.**
-> ```python
-> demand = Demand(invoice_id=1, user_id=1, status="pending")
-> db.add(demand); db.commit()
-> print(demand.status)      # -> "pending"
-> print(demand.invoice)     # -> <Invoice 1 status=pending>
-> ```
-
-- `AuditLog`
-  - Stores audit record entries for admin actions and workflow changes.
-  - Useful for tracking who changed what and when.
-
-> **Example.**
-> ```python
-> entry = AuditLog(demand_id=1, action="VALIDATED_DEMAND", actor_id=2,
->                  field_changed="status", old_value="pending", new_value="validated")
-> db.add(entry); db.commit()
-> ```
-> | audit_id | demand_id | action           | actor_id | old_value | new_value |
-> |---------:|----------:|------------------|---------:|-----------|-----------|
-> |        1 |         1 | VALIDATED_DEMAND |        2 | pending   | validated |
-
-What the file does overall:
-- Defines the database schema in Python.
-- Allows the backend to query and save application data using ORM objects.
-
----
-
-### [back/schemas.py](back/schemas.py)
-
-This file defines the request and response validation models used by FastAPI.
-
-Key models:
-
-- `RegisterRequest`
-  - Validates registration input.
-  - Requires full name, email, and password.
-  - Trims the full name before saving.
-
-> **Example.** Valid request body for `POST /auth/register`:
-> ```json
-> {"full_name": "  Amina Ben Ali  ", "email": "amina@steg.tn", "password": "secret123"}
-> ```
-> After validation, `full_name` is trimmed to `"Amina Ben Ali"`.
-> A short name or bad email is rejected with a 422 error:
-> ```json
-> {"detail": [{"loc": ["body", "password"], "msg": "String should have at least 6 characters", "type": "string_too_short"}]}
-> ```
-
-- `LoginRequest`
-  - Validates login input.
-  - Requires email and password.
-
-> **Example.** Body for `POST /auth/login`:
-> ```json
-> {"email": "amina@steg.tn", "password": "secret123"}
-> ```
-
-- `UserOut`
-  - Represents the user data returned to the client.
-
-> **Example.** Serialized user object:
-> ```json
-> {"user_id": 1, "full_name": "Amina Ben Ali", "email": "amina@steg.tn",
->  "role": "user", "account_status": "active", "created_at": "2026-08-11T09:00:00"}
-> ```
-
-- `AuthResponse`
-  - Returned after login or registration.
-  - Contains the JWT and user profile.
-
-> **Example.** Full login response:
-> ```json
-> {"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODg5MDAwMDAsImV4cCI6MTc4OTMzMjAwMH0.abc123...",
->  "token_type": "bearer",
->  "user": {"user_id": 1, "full_name": "Amina Ben Ali", "email": "amina@steg.tn",
->           "role": "user", "account_status": "active", "created_at": "2026-08-11T09:00:00"}}
-> ```
-
-- `InvoiceValuesUpdate`
-  - Validates the user-confirmed invoice values after OCR review.
-  - Includes supplier, invoice number, dates, amounts, currency, kwh, and due date.
-
-> **Example.** Body for `PUT /invoices/1/values`:
-> ```json
-> {"supplier": "STEG", "invoice_no": "2026-STEG-77491", "invoice_date": "2026-07-01",
->  "amount_excl_tax": 320.0, "tva": 64.45, "amount_incl_tax": 384.45,
->  "currency": "TND", "kwh_consumed": 1230, "due_date": "2026-08-25"}
-> ```
-
-- `InvoiceOut`
-  - Response schema for invoice details.
-  - Can include demand relationship data.
-
-> **Example.** Serialized invoice (with demand info merged in by `_invoice_out`):
-> ```json
-> {"invoice_id": 1, "user_id": 1, "file_name": "ab12cd34.pdf", "supplier": "STEG",
->  "invoice_no": "2026-STEG-77491", "invoice_date": "2026-07-01",
->  "amount_excl_tax": 320.0, "tva": 64.45, "amount_incl_tax": 384.45,
->  "currency": "TND", "kwh_consumed": 1230, "due_date": "2026-08-25",
->  "status": "pending", "uploaded_at": "2026-08-11T09:00:00",
->  "demand_id": 1, "demand_status": "pending"}
-> ```
-
-- `InvoiceUploadResponse`
-  - Returned after invoice upload.
-  - Contains the created invoice and a confirmation message.
-
-> **Example.** Response of `POST /invoices/upload`:
-> ```json
-> {"invoice": {"invoice_id": 1, "user_id": 1, "file_name": "ab12cd34.pdf",
->              "supplier": "STEG", "status": "uploaded", "...": "..."},
->  "message": "Upload successful. Awaiting value validation."}
-> ```
-
-- `InvoiceListResponse`
-  - Wraps a list of invoices and the total count.
-
-> **Example.** Response of `GET /invoices/mine`:
-> ```json
-> {"invoices": [{"invoice_id": 1, "...": "..."}, {"invoice_id": 2, "...": "..."}], "total": 2}
-> ```
-
-- `DemandCreate`
-  - Validates the payload for creating a demand.
-
-> **Example.** Body for `POST /demands`:
-> ```json
-> {"invoice_id": 1}
-> ```
-
-- `DemandOut`
-  - Represents a demand record in normal API responses.
-
-> **Example.**
-> ```json
-> {"demand_id": 1, "invoice_id": 1, "user_id": 1, "status": "pending",
->  "submitted_at": "2026-08-11T09:30:00", "reviewed_by_admin_id": null, "reviewed_at": null}
-> ```
-
-- `MyDemandOut`
-  - A richer demand view for the current user.
-
-> **Example.** Response of `GET /demands/mine`:
-> ```json
-> {"demand_id": 1, "invoice_id": 1, "invoice_no": "2026-STEG-77491",
->  "supplier": "STEG", "amount_incl_tax": 384.45, "status": "pending",
->  "submitted_at": "2026-08-11T09:30:00"}
-> ```
-
-- `AdminDemandOut`
-  - A richer demand view for admin review screens.
-
-> **Example.** Item in the admin review queue (`GET /admin/demands`):
-> ```json
-> {"demand_id": 1, "invoice_id": 1, "invoice_no": "2026-STEG-77491",
->  "supplier": "STEG", "amount_incl_tax": 384.45, "status": "pending",
->  "submitted_at": "2026-08-11T09:30:00",
->  "user_id": 1, "user_name": "Amina Ben Ali", "user_email": "amina@steg.tn"}
-> ```
-
-- `DemandDecision`
-  - Validates the admin decision payload for approve/reject requests.
-
-> **Example.** Body for `PATCH /admin/demands/1`:
-> ```json
-> {"status": "validated"}
-> ```
-> Only `"validated"` or `"rejected"` are accepted.
-
-- `AuditOut`
-  - Represents an audit log entry.
-
-> **Example.** Response of `GET /admin/audit`:
-> ```json
-> {"audit_id": 1, "demand_id": 1, "action": "VALIDATED_DEMAND", "actor_id": 2,
->  "field_changed": "status", "old_value": "pending", "new_value": "validated",
->  "timestamp": "2026-08-11T10:00:00"}
-> ```
-
-- `DashboardStats`
-  - Holds summary metrics for the dashboard.
-
-> **Example.** Response of `GET /dashboard/me`:
-> ```json
-> {"user_id": 1, "total_invoices": 12, "pending_demands": 2,
->  "validated_demands": 5, "total_kwh": 12340}
-> ```
-
-What the file does overall:
-- Ensures incoming and outgoing data is strongly validated.
-- Protects the API from malformed payloads.
-- Shapes the JSON responses returned to the frontend.
-
----
-
-### [back/security.py](back/security.py)
-
-This file handles authentication security.
-
-Functions:
-
-- `hash_password(plain)`
-  - Converts a plain-text password into a bcrypt hash.
-  - Used when creating or storing user passwords.
-
-> **Example.**
-> ```python
-> from security import hash_password
-> print(hash_password("secret123"))
-> # -> "$2b$12$e9K...6y"   (a 60-character bcrypt string, always unique)
-> ```
-
-- `verify_password(plain, hashed)`
-  - Compares a plain-text password with a stored hash.
-  - Used during login.
-
-> **Example.**
-> ```python
-> from security import hash_password, verify_password
-> hashed = hash_password("secret123")
-> verify_password("secret123", hashed)   # -> True
-> verify_password("wrongpass", hashed)   # -> False
-> ```
-
-- `create_access_token(user_id, role)`
-  - Generates a JWT containing the user ID and role.
-  - Includes expiration information so tokens expire automatically.
-
-> **Example.**
-> ```python
-> from security import create_access_token
-> token = create_access_token(user_id=1, role="admin")
-> print(token)  # -> "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwi..."
-> ```
-> The token expires after `settings.JWT_EXPIRE_MINUTES` (default 720 minutes = 12 hours).
-
-- `decode_access_token(token)`
-  - Validates a JWT.
-  - Returns the decoded payload if the token is valid.
-  - Returns nothing if the token is expired or invalid.
-
-> **Example.**
-> ```python
-> from security import create_access_token, decode_access_token
-> token = create_access_token(user_id=1, role="user")
-> print(decode_access_token(token))
-> # -> {"sub": "1", "role": "user", "iat": 1788900000, "exp": 1789332000}
-> print(decode_access_token("garbage.token.here"))   # -> None
-> ```
-
-What the file does overall:
-- Secures user accounts.
-- Implements stateless authentication for the API.
-
----
-
-### [back/services.py](back/services.py)
-
-This file contains shared helper functions used by multiple routers.
-
-Functions:
-
-- `_check_extension(filename)`
-  - Validates the uploaded file extension.
-  - Rejects unsupported file types.
-  - Ensures only allowed invoice formats are stored.
-
-> **Example.**
-> ```python
-> from services import _check_extension
-> _check_extension("facture.pdf")      # OK, no error
-> _check_extension("facture.exe")      # raises HTTPException(400)
-> # {"detail": "Unsupported file type '.exe'. Allowed: .jpeg, .jpg, .pdf, .png, .webp"}
-> ```
-
-- `save_upload_file(upload)`
-  - Accepts an uploaded file.
-  - Validates extension and size.
-  - Saves the file into the uploads folder.
-  - Generates a unique file name.
-  - Returns the relative path of the stored file for database persistence.
-
-> **Example.** Inside `POST /invoices/upload`:
-> ```python
-> path = save_upload_file(file)
-> # e.g. -> "uploads/a3f9c1e2d4b6...pdf"  (uuid-based name, stored under back/uploads/)
-> # If the file is over 10 MB it raises HTTPException(413):
-> # {"detail": "File exceeds the 10 MB limit"}
-> ```
-
-- `create_audit_log(...)`
-  - Creates an audit-log record linked to a demand.
-  - Stores the actor, action, changed field, old value, and new value.
-  - The `timestamp` is set to **local server time** via `datetime.now()`.
-
-> **Example.** Used in the admin review endpoint:
-> ```python
-> entry = create_audit_log(
->     db,
->     demand=demand,
->     actor_id=admin.user_id,
->     action="VALIDATED_DEMAND",
->     field_changed="status",
->     old_value="pending",
->     new_value="validated",
-> )
-> db.commit()   # the entry is only persisted when the transaction commits
-> ```
-
-What the file does overall:
-- Encapsulates file upload logic.
-- Centralizes audit-trail creation.
-
----
-
-### [back/seed.py](back/seed.py)
-
-This file populates the database with demo data for testing the application.
-
-Functions:
-
-- `_get_or_create_user(db, name, email, role)`
-  - Checks whether a user already exists by email.
-  - Creates the user if necessary (password `demo123`, `account_status="active"`).
-  - **On subsequent runs, re-activates demo accounts**: if `account_status` is not `"active"` or the role differs, it resets `account_status = "active"` and reapplies the role. This ensures demo accounts remain usable even after the backfill migration defaulted them to `pending`.
-
-> **Example.**
-> ```python
-> user = _get_or_create_user(db, "Sami Rejeb", "sami.rejeb@steg.tn", "user")
-> # First call -> creates the user with password "demo123", account_status "active".
-> # Second call -> returns existing user; if account_status was "pending", sets it back to "active".
-> ```
-
-- `seed(db)`
-  - Creates demo users (regular user + admin).
-  - Adds 3 sample invoices with their demands (1 pending, 2 validated) plus audit logs **only on first run** (when the demo user has zero invoices).
-  - Sample invoice files are referenced at `uploads/sample/steg_<invoice_no>.pdf`.
-
-> **Example.** When `STEG_SEED=1` (default), running the app creates:
-> - User `sami.rejeb@steg.tn` (password `demo123`)
-> - Admin `admin.validation@steg.tn` (password `demo123`)
-> - 3 sample invoices with their demands (1 pending, 2 validated), plus audit logs
->
-> You can log in with either account:
-> ```bash
-> curl -X POST http://127.0.0.1:8000/auth/login \
->   -H "Content-Type: application/json" \
->   -d '{"email": "admin.validation@steg.tn", "password": "demo123"}'
-> ```
-> Seeding is idempotent — it only adds invoices the first time the demo user has none.
-
-What the file does overall:
-- Provides realistic sample data.
-- Allows the application to be shown quickly in a demo environment.
-- Keeps demo accounts active across restarts/migrations.
-
----
-
-### [back/run.py](back/run.py)
-
-This is a simple startup script for launching the backend.
-
-What it does:
-- Adds the backend directory to Python’s import path.
-- Imports the application settings.
-- Starts Uvicorn with the FastAPI app.
-
-> **Example.**
-> ```bash
-> cd back
-> python run.py
-> # INFO:     Uvicorn running on http://127.0.0.1:8000
-> ```
-> Equivalent to: `uvicorn main:app --host 127.0.0.1 --port 8000`
-
----
-
-## 4. Router-by-router explanation
-
-### [back/routers/auth.py](back/routers/auth.py)
-
-Functions:
-
-- `_auth_response(user)`
-  - Builds a JWT and wraps the user in an authentication response.
-
-> **Example.**
-> ```python
-> _auth_response(user, access_token=create_access_token(user.user_id, user.role))
-> # -> AuthResponse(access_token="eyJ...", token_type="bearer", user=UserOut(...))
-> ```
-
-- `register(payload, db)`
-  - Creates a new user account.
-  - Checks whether the email already exists.
-  - Hashes the password.
-  - Saves the user with `created_at` set to **local server time** (`datetime.now()`).
-  - Returns a JWT and the user profile.
-
-> **Example.** `POST /auth/register` (201 Created)
-> ```bash
-> curl -X POST http://127.0.0.1:8000/auth/register \
->   -H "Content-Type: application/json" \
->   -d '{"full_name": "Amina Ben Ali", "email": "amina@steg.tn", "password": "secret123"}'
-> ```
-> ```json
-> {"access_token": "eyJ...", "token_type": "bearer",
->  "user": {"user_id": 1, "full_name": "Amina Ben Ali", "email": "amina@steg.tn",
->           "role": "user", "account_status": "pending", "created_at": "2026-08-11T09:00:00"}}
-> ```
-> Duplicate email -> 409:
-> ```json
-> {"detail": "An account with this email already exists"}
-> ```
-
-- `login(payload, db)`
-  - Authenticates the user with email and password.
-  - Verifies the stored password hash.
-  - Returns a JWT if the credentials are correct **and** the account is active.
-  - Rejects pending accounts with a distinct 403 message asking the user to wait for admin approval.
-  - Rejects inactive (banned/deactivated) accounts with a distinct 403 message telling them to contact an administrator.
-
-> **Example.** `POST /auth/login`
-> ```bash
-> curl -X POST http://127.0.0.1:8000/auth/login \
->   -H "Content-Type: application/json" \
->   -d '{"email": "amina@steg.tn", "password": "secret123"}'
-> ```
-> Wrong credentials -> 401:
-> ```json
-> {"detail": "Invalid email or password"}
-> ```
-> Correct credentials but account **pending** -> 403:
-> ```json
-> {"detail": "Your account is awaiting admin approval. Please try again once it is verified."}
-> ```
-> Correct credentials but account **inactive** -> 403:
-> ```json
-> {"detail": "Your account has been deactivated. Contact an administrator."}
-> ```
-
-- `update_me(payload, current_user)` (route `PATCH /auth/me`)
-  - Updates the authenticated user's full name.
-
-> **Example.** `PATCH /auth/me`
-> ```bash
-> curl -X PATCH http://127.0.0.1:8000/auth/me \
->   -H "Authorization: Bearer <JWT>" \
->   -H "Content-Type: application/json" \
->   -d '{"full_name": "Amina B."}'
-> ```
-> ```json
-> {"user_id": 1, "full_name": "Amina B.", "email": "amina@steg.tn",
->  "role": "user", "account_status": "pending", "created_at": "2026-08-11T09:00:00"}
-> ```
-
-- `me(current_user)`
-  - Returns the authenticated user profile.
-  - Useful for frontend pages that need the logged-in user details.
-
-> **Example.** `GET /auth/me` (requires `Authorization: Bearer <JWT>`)
-> ```json
-> {"user_id": 1, "full_name": "Amina Ben Ali", "email": "amina@steg.tn",
->  "role": "user", "account_status": "pending", "created_at": "2026-08-11T09:00:00"}
-> ```
-
----
-
-### [back/routers/invoices.py](back/routers/invoices.py)
-
-Functions:
-
-- `_invoice_out(invoice)`
-  - Converts an ORM invoice to the response schema.
-  - Also attaches the demand information if the invoice is linked to one.
-
-> **Example.**
-> ```python
-> out = _invoice_out(invoice)
-> print(out.demand_id)      # -> 1 (or None if no demand exists)
-> print(out.demand_status)  # -> "pending" (or None)
-> ```
-
-- `_own_invoice_or_404(db, invoice_id, user)`
-  - Finds an invoice by ID.
-  - Ensures the invoice belongs to the current user or the requester is an admin.
-  - Raises 404 or 403 errors when access is not allowed.
-
-> **Example.**
-> ```python
-> invoice = _own_invoice_or_404(db, 99, current_user)
-> # unknown id        -> 404 {"detail": "Invoice not found"}
-> # not yours (user)  -> 403 {"detail": "Not your invoice"}
-> # admin             -> allowed even for other users' invoices
-> ```
-
-- `upload_invoice(file, db, current_user)`
-  - Saves the uploaded invoice file.
-  - Creates an invoice record in the database with `uploaded_at` set to **local server time** (`datetime.now()`).
-  - Marks the initial status as uploaded.
-
-> **Example.** `POST /invoices/upload` (multipart, 201 Created)
-> ```bash
-> curl -X POST http://127.0.0.1:8000/invoices/upload \
->   -H "Authorization: Bearer <JWT>" \
->   -F "file=@facture.pdf"
-> ```
-> ```json
-> {"invoice": {"invoice_id": 1, "user_id": 1, "file_name": "facture.pdf",
->              "supplier": "STEG", "status": "uploaded", "...": "..."},
->  "message": "Upload successful. Awaiting value validation."}
-> ```
-
-- `list_my_invoices(db, current_user)`
-  - Returns all invoices belonging to the authenticated user.
-  - Orders them from newest to oldest.
-
-> **Example.** `GET /invoices/mine`
-> ```json
-> {"invoices": [{"invoice_id": 2, "status": "pending", "...": "..."},
->               {"invoice_id": 1, "status": "uploaded", "...": "..."}],
->  "total": 2}
-> ```
-
-- `get_invoice(invoice_id, db, current_user)`
-  - Retrieves one specific invoice.
-  - Restricts access to the invoice owner or admin.
-
-> **Example.** `GET /invoices/1`
-> ```json
-> {"invoice_id": 1, "user_id": 1, "file_name": "facture.pdf", "supplier": "STEG",
->  "status": "uploaded", "demand_id": null, "demand_status": null, "...": "..."}
-> ```
-
-- `update_invoice_values(invoice_id, payload, db, current_user)`
-  - Updates the confirmed invoice fields entered by the user.
-  - Marks the invoice as validated_by_user.
-
-> **Example.** `PUT /invoices/1/values`
-> ```bash
-> curl -X PUT http://127.0.0.1:8000/invoices/1/values \
->   -H "Authorization: Bearer <JWT>" \
->   -H "Content-Type: application/json" \
->   -d '{"supplier": "STEG", "invoice_no": "2026-STEG-77491", "kwh_consumed": 1230, "...": "..."}'
-> ```
-> Response now shows `"status": "validated_by_user"`.
-
----
-
-### [back/routers/demands.py](back/routers/demands.py)
-
-Functions:
-
-- `_my_demand_out(demand)`
-  - Converts a demand and its linked invoice into a user-friendly response object.
-
-> **Example.**
-> ```python
-> _my_demand_out(demand)
-> # -> MyDemandOut(demand_id=1, invoice_id=1, invoice_no="2026-STEG-77491",
-> #                supplier="STEG", amount_incl_tax=384.45, status="pending", ...)
-> ```
-
-- `submit_demand(payload, db, current_user)`
-  - Validates that the invoice exists and belongs to the current user.
-  - Ensures the invoice has already been user-validated.
-  - Prevents duplicate demands for the same invoice.
-  - Creates a new demand with `submitted_at` set to **local server time** (`datetime.now()`) and updates the invoice status to pending.
-
-> **Example.** `POST /demands` (201 Created)
-> ```bash
-> curl -X POST http://127.0.0.1:8000/demands \
->   -H "Authorization: Bearer <JWT>" \
->   -H "Content-Type: application/json" \
->   -d '{"invoice_id": 1}'
-> ```
-> ```json
-> {"demand_id": 1, "invoice_id": 1, "user_id": 1, "status": "pending",
->  "submitted_at": "2026-08-11T09:30:00", "reviewed_by_admin_id": null, "reviewed_at": null}
-> ```
-> Guard errors:
-> - Invoice not user-validated -> 400 `"Invoice must be user-validated before a demand can be submitted"`
-> - Demand already exists -> 409 `"A demand already exists for this invoice"`
-
-- `list_my_demands(db, current_user)`
-  - Returns all demands submitted by the current user.
-  - Orders them from newest to oldest.
-
-> **Example.** `GET /demands/mine`
-> ```json
-> [{"demand_id": 1, "invoice_id": 1, "invoice_no": "2026-STEG-77491",
->   "supplier": "STEG", "amount_incl_tax": 384.45, "status": "pending",
->   "submitted_at": "2026-08-11T09:30:00"}]
-> ```
-
----
-
-### [back/routers/admin.py](back/routers/admin.py)
-
-Functions:
-
-- `_admin_demand_out(demand)`
-  - Builds the admin-facing demand response object.
-  - Includes the requester’s name and email.
-
-> **Example.**
-> ```python
-> _admin_demand_out(demand)
-> # -> AdminDemandOut(..., user_id=1, user_name="Amina Ben Ali", user_email="amina@steg.tn")
-> ```
-
-- `admin_list_demands(db, admin, status_filter)`
-  - Lists all demands across all users for admin review.
-  - Supports filtering by demand status.
-  - Validates the requested status value.
-
-> **Example.** `GET /admin/demands?status=pending`
-> ```json
-> [{"demand_id": 1, "invoice_id": 1, "invoice_no": "2026-STEG-77491",
->   "supplier": "STEG", "amount_incl_tax": 384.45, "status": "pending",
->   "submitted_at": "2026-08-11T09:30:00",
->   "user_id": 1, "user_name": "Amina Ben Ali", "user_email": "amina@steg.tn"}]
-> ```
-> Invalid filter -> 400:
-> ```json
-> {"detail": "status must be one of: all, pending, rejected, validated"}
-> ```
-
-- `admin_review_demand(demand_id, decision, db, admin)`
-  - Lets an admin approve or reject a demand.
-  - Updates the demand status.
-  - Updates the invoice status.
-  - Writes an audit log entry.
-  - Records who reviewed it and when (`reviewed_at` stored in **local server time** via `datetime.now()`).
-
-> **Example.** `PATCH /admin/demands/1`
-> ```bash
-> curl -X PATCH http://127.0.0.1:8000/admin/demands/1 \
->   -H "Authorization: Bearer <ADMIN_JWT>" \
->   -H "Content-Type: application/json" \
->   -d '{"status": "validated"}'
-> ```
-> ```json
-> {"demand_id": 1, "invoice_id": 1, "invoice_no": "2026-STEG-77491",
->  "supplier": "STEG", "amount_incl_tax": 384.45, "status": "validated",
->  "submitted_at": "2026-08-11T09:30:00",
->  "user_id": 1, "user_name": "Amina Ben Ali", "user_email": "amina@steg.tn"}
-> ```
-> An audit log row is also inserted (action `VALIDATED_DEMAND` or `REJECTED_DEMAND`).
-> Re-reviewing an already-reviewed demand -> 409 `"Demand already reviewed (status=validated)"`.
-
-- `admin_audit_logs(db, admin)`
-  - Returns the full list of audit log entries.
-  - Useful for reviewing the workflow history.
-
-> **Example.** `GET /admin/audit`
-> ```json
-> [{"audit_id": 1, "demand_id": 1, "action": "VALIDATED_DEMAND", "actor_id": 2,
->   "field_changed": "status", "old_value": "pending", "new_value": "validated",
->   "timestamp": "2026-08-11T10:00:00"}]
-> ```
-
-Additional admin endpoints (user and invoice management):
-
-- `GET /admin/users` — list all **non-admin users** (newest first). Administrator accounts are intentionally excluded (`WHERE role = 'user'`) so they cannot be acted upon from this view.
-- `POST /admin/users` — create a user with `created_at` set to **local server time**; body uses `AdminUserCreate`, e.g.:
-  ```json
-  {"full_name": "Khalil Trabelsi", "email": "khalil@steg.tn",
-   "role": "user", "account_status": "active", "password": "secret123"}
+#### Function: `lifespan(_app: FastAPI)`
+- **What it does**: Context manager executed during app startup and shutdown. On startup, it triggers `init_db()` to ensure the database schema exists and applies additive migrations. If `settings.SEED` is enabled, it automatically seeds default demo accounts.
+- **Activation Trigger**: Triggered automatically by the FastAPI framework when the Uvicorn/Gunicorn server boots up.
+- **Why this method?**: Replaces deprecated `@app.on_event("startup")` event handlers with FastAPI's modern lifespan context manager pattern, guaranteeing proper resource cleanup upon shutdown.
+- **Example**:
+  ```python
+  # Activated automatically on server launch:
+  # uvicorn main:app --reload
   ```
-- `PATCH /admin/users/{user_id}` — update a user's name, email, role, `account_status`, or password.
-  - **Guards:** Returns `400 "Administrator accounts cannot be modified"` if the target user has `role = "admin"`.
-  - **Guard:** Returns `400 "You cannot edit your own account here"` if `user_id == admin.user_id`.
-  - Typical admin action: set `account_status` to `"active"` (approve) or `"inactive"` (ban/deactivate).
-- `DELETE /admin/users/{user_id}` — delete a user (returns 204 No Content).
-  - **Guards:** Returns `400 "Administrator accounts cannot be deleted"` if the target user has `role = "admin"`.
-  - **Guard:** Returns `400 "You cannot delete your own account"` if `user_id == admin.user_id`.
-- `GET /admin/invoices` — list all invoices with owner name/email and demand info.
-- `POST /admin/invoices` — create an invoice with `uploaded_at` set to **local server time**; body uses `AdminInvoiceCreate`.
-- `PATCH /admin/invoices/{invoice_id}` — update an invoice.
-- `DELETE /admin/invoices/{invoice_id}` — delete an invoice (204 No Content).
 
 ---
 
-### [back/routers/dashboard.py](back/routers/dashboard.py)
-
-Functions:
-
-- `_stats_for(db, user_id)`
-  - Computes dashboard metrics for a specific user.
-  - Counts invoices, pending demands, validated demands, and total kwh consumed.
-
-> **Example.**
-> ```python
-> stats = _stats_for(db, user_id=1)
-> # -> DashboardStats(user_id=1, total_invoices=12, pending_demands=2,
-> #                   validated_demands=5, total_kwh=12340)
-> ```
-
-- `my_dashboard_stats(db, current_user)`
-  - Returns the dashboard summary for the signed-in user.
-
-> **Example.** `GET /dashboard/me`
-> ```json
-> {"user_id": 1, "total_invoices": 12, "pending_demands": 2,
->  "validated_demands": 5, "total_kwh": 12340}
-> ```
-
-- `admin_user_dashboard_stats(user_id, db, admin)`
-  - Returns the same dashboard summary for any specific user, but only for admins.
-
-> **Example.** `GET /admin/dashboard/1` (admin only)
-> ```json
-> {"user_id": 1, "total_invoices": 12, "pending_demands": 2,
->  "validated_demands": 5, "total_kwh": 12340}
-> ```
-> Unknown user -> 404 `{"detail": "User not found"}`.
+#### Function: `health()`
+- **What it does**: Returns an HTTP status object verifying server health, service name, and API version.
+- **Activation Trigger**: Triggered by HTTP `GET /health` requests from load balancers, health checkers, or frontend connection tests.
+- **Why this method?**: Standard lightweight health endpoint that requires zero database queries, enabling instant status checks.
+- **Example**:
+  ```bash
+  curl -X GET http://127.0.0.1:8000/health
+  ```
+  ```json
+  {"status": "ok", "service": "steg-backend", "version": "1.0.0"}
+  ```
 
 ---
 
-## 5. Typical backend flow
-
-A common flow in this app is:
-1. User registers or logs in.
-2. User uploads an invoice.
-3. User validates the extracted invoice values.
-4. User submits a demand for the invoice.
-5. Admin reviews the demand.
-6. The invoice and demand statuses are updated.
-7. Audit logs record the decision.
-
-> **Example.** End-to-end sequence of HTTP calls:
-> ```bash
-> # 1. Login and capture the JWT
-> TOKEN=$(curl -s -X POST http://127.0.0.1:8000/auth/login \
->   -H "Content-Type: application/json" \
->   -d '{"email":"admin.validation@steg.tn","password":"demo123"}' | jq -r .access_token)
->
-> # 2. Upload a facture
-> curl -X POST http://127.0.0.1:8000/invoices/upload \
->   -H "Authorization: Bearer $TOKEN" -F "file=@facture.pdf"
->
-> # 3. Confirm the OCR values
-> curl -X PUT http://127.0.0.1:8000/invoices/1/values \
->   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
->   -d '{"supplier":"STEG","invoice_no":"2026-STEG-77491","amount_incl_tax":384.45,
->        "currency":"TND","kwh_consumed":1230}'
->
-> # 4. Submit a demand
-> curl -X POST http://127.0.0.1:8000/demands \
->   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
->   -d '{"invoice_id":1}'
->
-> # 5-7. Admin approves; statuses update and an audit log is written
-> curl -X PATCH http://127.0.0.1:8000/admin/demands/1 \
->   -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
->   -d '{"status":"validated"}'
-> curl http://127.0.0.1:8000/admin/audit -H "Authorization: Bearer $ADMIN_TOKEN"
-> ```
+#### Function: `index()`
+- **What it does**: Serves the primary `index.html` single-page application file to client browsers.
+- **Activation Trigger**: Triggered by HTTP `GET /` requests when a user navigates to the root URL.
+- **Why this method?**: Allows FastAPI to serve the SPA directly without requiring an external reverse proxy (like Nginx) in standalone development environments.
+- **Example**:
+  ```bash
+  curl -X GET http://127.0.0.1:8000/
+  ```
 
 ---
 
-## 6. Short summary
+### 3.2 `back/config.py`
 
-- Authentication is handled by [back/security.py](back/security.py) and [back/deps.py](back/deps.py).
-- Database structure is defined in [back/models.py](back/models.py).
-- API routes are split into router files under [back/routers](back/routers).
-- File upload and audit logic live in [back/services.py](back/services.py).
-- Application settings live in [back/config.py](back/config.py).
+**File Overview**:
+Contains application configuration, environment variable parsing, upload constraints, role definitions, and dynamic SQL Server connection string generators.
 
-If you want, I can also turn this into a more visual architecture diagram or a shorter developer cheat sheet.
+---
+
+#### Function: `_detect_db_server()`
+- **What it does**: Inspects the environment variable `STEG_DB_SERVER`. If absent, defaults to Windows LocalDB instance `(localdb)\MSSQLLocalDB`.
+- **Activation Trigger**: Executed during module loading when `Settings` class is instantiated.
+- **Why this method?**: Ensures zero-configuration local development out of the box on Windows while supporting override in production via environment variables.
+
+---
+
+#### Class: `Settings`
+- **What it contains**:
+  - `DB_SERVER`, `DB_NAME`, `DB_DRIVER`: Connection parameters for SQL Server PyODBC driver.
+  - `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRE_MINUTES`: Secret key and expiry window (default 720 minutes / 12 hours) for JWT tokens.
+  - `MAX_UPLOAD_MB`, `ALLOWED_UPLOAD_EXTENSIONS`: File validation constraints (`10 MB`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp`).
+  - `INVOICE_STATUSES`, `DEMAND_STATUSES`: Allowed workflow state sets (`pending`, `approved`, `validated`, `rejected`, `uploaded`).
+- **Properties**:
+  - `_odbc_connect(database)`: Formats standard ODBC connection string with trusted authentication (`Trusted_Connection=yes; TrustServerCertificate=yes`).
+  - `database_url`: URL-encodes the ODBC string for SQLAlchemy engine compatibility using `mssql+pyodbc:///?odbc_connect=...`.
+  - `master_url`: Generates connection URL targeting SQL Server's `master` DB to check/create the target application DB dynamically.
+- **Why this method?**: Encapsulating configuration in a single class prevents scattering magic constants across the codebase and centralizes security settings.
+- **Example**:
+  ```python
+  from config import settings
+  print(settings.database_url)
+  ```
+
+---
+
+### 3.3 `back/database.py`
+
+**File Overview**:
+Manages SQLAlchemy engine creation, DB session creation (`SessionLocal`), initial database creation on SQL Server, and automatic schema migrations.
+
+---
+
+#### Variable: `engine` & `SessionLocal`
+- **What it does**: `engine` holds the connection pool to SQL Server (`pool_pre_ping=True`, `pool_recycle=1800`). `SessionLocal` is the sessionmaker factory bound to `engine`.
+- **Why this method?**: `pool_pre_ping=True` prevents "stale connection" errors when SQL Server drops idle connections. `pool_recycle=1800` recycles connections every 30 minutes.
+
+---
+
+#### Function: `get_db()`
+- **What it does**: Generator function yielding an active database session (`Session`) and guaranteeing closing of the session in a `finally` block when the request finishes.
+- **Activation Trigger**: Injected into FastAPI route handlers via `Depends(get_db)`.
+- **Why this method?**: Ensures clean session lifecycle management, preventing connection leaks and hanging locks in SQL Server.
+- **Example**:
+  ```python
+  @router.get("/items")
+  def get_items(db: Session = Depends(get_db)):
+      return db.query(Item).all()
+  ```
+
+---
+
+#### Function: `_ensure_database_exists()`
+- **What it does**: Connects to SQL Server `master` database and executes `IF DB_ID('StegDB') IS NULL CREATE DATABASE [StegDB]`.
+- **Activation Trigger**: Invoked by `init_db()` during application lifespan startup.
+- **Why this method?**: Eliminates manual database creation steps in SSMS; the backend auto-creates `StegDB` on first run.
+
+---
+
+#### Function: `run_migrations()`
+- **What it does**: Executes idempotent raw DDL/DML statements to alter existing tables (adding missing columns like `kwh_consumed`, `due_date`, `account_status`), updating legacy records, and switching timestamp default constraints from UTC to local server time (`DEFAULT (getdate())`).
+- **Activation Trigger**: Invoked by `init_db()` during startup.
+- **Why this method?**: Allows lightweight schema evolution without introducing complex migration frameworks (like Alembic) for straightforward application requirements.
+
+---
+
+#### Function: `init_db()`
+- **What it does**: Coordinates the entire DB setup pipeline: creates upload directories, ensures target DB exists, issues `Base.metadata.create_all(bind=engine)` to create tables, and runs migrations.
+- **Activation Trigger**: Invoked by `lifespan` context manager in `main.py` on startup.
+
+---
+
+### 3.4 `back/deps.py`
+
+**File Overview**:
+Contains security dependencies for authenticating incoming API requests and enforcing Role-Based Access Control (RBAC).
+
+---
+
+#### Function: `get_current_user(db: Session, token: str)`
+- **What it does**: Extracts the HTTP `Authorization: Bearer <token>` header, decodes the JWT via `decode_access_token()`, extracts `user_id`, queries the `Users` table, and returns the authenticated `User` model object.
+- **Activation Trigger**: Injected as a dependency into protected user endpoints (e.g. `/invoices/mine`, `/demands`).
+- **Error Conditions**: Throws `HTTP 401 Unauthorized` if token is missing, expired, invalid, or user does not exist in DB.
+- **Why this method?**: Centralizes authentication logic so individual endpoints do not duplicate JWT parsing code.
+- **Example**:
+  ```python
+  @router.get("/me")
+  def me(current_user: User = Depends(get_current_user)):
+      return current_user
+  ```
+
+---
+
+#### Function: `require_admin(current_user: User)`
+- **What it does**: Inspects `current_user.role`. If `current_user.role != "admin"`, raises `HTTP 403 Forbidden`. Returns `current_user` if role is `"admin"`.
+- **Activation Trigger**: Injected as a dependency into all admin review queue endpoints in `back/routers/admin.py`.
+- **Why this method?**: Guarantees strict server-side authorization enforcement, ensuring normal users can never execute admin actions even if they bypass frontend UI checks.
+- **Example**:
+  ```python
+  @router.get("/admin/users")
+  def list_users(admin: User = Depends(require_admin)):
+      ...
+  ```
+
+---
+
+### 3.5 `back/security.py`
+
+**File Overview**:
+Contains cryptographic routines for password hashing and stateless JWT token issuance/validation.
+
+---
+
+#### Function: `hash_password(plain: str) -> str`
+- **What it does**: Hashes a plain-text password using `bcrypt.hashpw()` with a random salt (`bcrypt.gensalt()`). Returns a string.
+- **Activation Trigger**: Invoked during user registration (`POST /auth/register`) or admin user creation/update (`POST /admin/users`).
+- **Why this method?**: Bcrypt is a secure, computationally expensive key derivation function resistant to rainbow table and brute-force attacks.
+
+---
+
+#### Function: `verify_password(plain: str, hashed: str) -> bool`
+- **What it does**: Compares a candidate plain-text password against a stored bcrypt hash using `bcrypt.checkpw()`. Returns `True` if match, `False` otherwise.
+- **Activation Trigger**: Invoked during user authentication (`POST /auth/login`).
+- **Why this method?**: Safely handles constant-time string comparison, protecting against timing attack vulnerabilities.
+
+---
+
+#### Function: `create_access_token(user_id: int, role: str) -> str`
+- **What it does**: Builds a JWT payload containing claims: `sub` (user_id), `role`, `iat` (issued at time), `exp` (expiration time), and encodes it using `jwt.encode()` with `settings.JWT_SECRET` and algorithm `HS256`.
+- **Activation Trigger**: Invoked upon successful login or registration in `auth.py`.
+- **Why this method?**: Stateless JWT tokens eliminate the need for server-side session lookup tables in DB, enabling scalable horizontal scaling.
+
+---
+
+#### Function: `decode_access_token(token: str) -> dict | None`
+- **What it does**: Decodes and verifies the signature and expiration of a JWT token string using `jwt.decode()`. Returns payload dictionary or `None` if invalid/expired.
+- **Activation Trigger**: Invoked by `get_current_user` in `deps.py` on protected HTTP requests.
+
+---
+
+### 3.6 `back/models.py`
+
+**File Overview**:
+Defines SQLAlchemy ORM mapped entities corresponding to database tables: `Users`, `Invoices`, `Demands`, `AuditLogs`.
+
+---
+
+#### Class: `User(Base)`
+- **Table Name**: `Users`
+- **Columns**: `user_id` (PK), `full_name`, `email` (Unique Index), `password_hash`, `role` (`user` | `admin`), `account_status` (`active` | `pending` | `inactive`), `created_at`.
+- **Relationships**: `invoices` (one-to-many with `Invoice`, cascade delete), `demands` (one-to-many with `Demand`).
+
+#### Class: `Invoice(Base)`
+- **Table Name**: `Invoices`
+- **Columns**: `invoice_id` (PK), `user_id` (FK -> `Users.user_id`), `file_path`, `supplier`, `invoice_no`, `invoice_date`, `amount_excl_tax`, `tva`, `amount_incl_tax`, `currency`, `kwh_consumed`, `due_date`, `status`, `uploaded_at`.
+- **Property `file_name`**: Computes basename from `file_path` (e.g. `uploads/abc.pdf` -> `abc.pdf`).
+- **Relationships**: `owner` (many-to-one with `User`), `demand` (one-to-one with `Demand`, cascade delete).
+
+#### Class: `Demand(Base)`
+- **Table Name**: `Demands`
+- **Columns**: `demand_id` (PK), `invoice_id` (FK -> `Invoices.invoice_id`, Unique), `user_id` (FK -> `Users.user_id`), `status` (`pending` | `approved` | `rejected`), `submitted_at`, `reviewed_by_admin_id` (FK -> `Users.user_id`), `reviewed_at`.
+- **Relationships**: `invoice` (one-to-one with `Invoice`), `requester` (many-to-one with `User`), `reviewer` (many-to-one with `User`), `audit_logs` (one-to-many with `AuditLog`, cascade delete).
+
+#### Class: `AuditLog(Base)`
+- **Table Name**: `AuditLogs`
+- **Columns**: `audit_id` (PK), `demand_id` (FK -> `Demands.demand_id`), `actor_id` (FK -> `Users.user_id`), `action`, `field_changed`, `old_value`, `new_value`, `timestamp`.
+
+---
+
+### 3.7 `back/schemas.py`
+
+**File Overview**:
+Defines Pydantic request and response models used for input validation, sanitization, and JSON response serialization.
+
+---
+
+#### Key Pydantic Models & Field Validators:
+- **`RegisterRequest`**: Validates user registration. Uses `@field_validator("full_name")` to trim whitespace. Ensures password length >= 6.
+- **`LoginRequest`**: Validates login credentials (`email`, `password`).
+- **`UserOut`**: Wire response schema for user identity (`user_id`, `full_name`, `email`, `role`, `account_status`, `created_at`). Configured with `from_attributes = True`.
+- **`AuthResponse`**: Response containing `access_token`, `token_type = "bearer"`, and nested `user: UserOut`.
+- **`InvoiceValuesUpdate`**: Payload submitted when user confirms extracted OCR values (`supplier`, `invoice_no`, `invoice_date`, `amount_excl_tax`, `tva`, `amount_incl_tax`, `currency`, `kwh_consumed`, `due_date`).
+- **`InvoiceOut`**: Complete wire output format for an invoice merged with its associated `demand_id` and `demand_status`.
+- **`DemandDecision`**: Payload for admin review decision (`status: Field(pattern="^(approved|validated|rejected)$")`).
+- **`DashboardStats`**: Aggregated statistics summary (`total_invoices`, `pending_demands`, `validated_demands`, `total_kwh`).
+
+---
+
+### 3.8 `back/services.py`
+
+**File Overview**:
+Contains application service helpers for file upload persistence and audit trail logging.
+
+---
+
+#### Function: `_check_extension(filename: str)`
+- **What it does**: Checks if file extension belongs to `settings.ALLOWED_UPLOAD_EXTENSIONS`. Raises `HTTP 400 Bad Request` if invalid.
+- **Activation Trigger**: Called inside `save_upload_file()`.
+
+---
+
+#### Function: `save_upload_file(upload: UploadFile) -> str`
+- **What it does**: Validates extension, streams uploaded bytes in 1 MB chunks (`SAVE_CHUNK_SIZE`), enforces max file size limit (`settings.MAX_UPLOAD_MB`), generates a secure unique filename using `uuid.uuid4().hex`, saves file into `uploads/` directory, and returns store-relative path.
+- **Activation Trigger**: Called by `upload_invoice()` in `routers/invoices.py` during HTTP `POST /invoices/upload`.
+- **Why this method?**: Streaming file chunks prevents RAM exhaustion when uploading large documents. Unlinking partial files on failure prevents orphan file accumulation.
+- **Example**:
+  ```python
+  saved_path = save_upload_file(uploaded_file)
+  # returns "uploads/e3a89078f4a1.pdf"
+  ```
+
+---
+
+#### Function: `create_audit_log(db, demand, actor_id, action, field_changed, old_value, new_value)`
+- **What it does**: Instantiates a new `AuditLog` ORM model record and adds it to the DB session.
+- **Activation Trigger**: Called when a demand is created/updated or when an admin reviews a demand in `routers/invoices.py`, `routers/demands.py`, and `routers/admin.py`.
+- **Why this method?**: Centralizes audit logging to guarantee consistency across all system state transitions.
+
+---
+
+### 3.9 `back/ocr_service.py`
+
+**File Overview**:
+Implements optical character recognition (OCR) and PDF parsing pipelines using PyTesseract, Poppler (`pdf2image`), and regular expressions tailored for STÈG utility invoices.
+
+---
+
+#### Function: `run_ocr(file_path: str) -> dict`
+- **What it does**:
+  1. Checks if input file is PDF or image. If PDF, converts first page to image using `pdf2image.convert_from_path()`.
+  2. Runs Tesseract OCR engine (`pytesseract.image_to_string()`) with French/Arabic language support.
+  3. Applies specialized regular expressions to parse STÈG fields:
+     - `facture`: Regex search for invoice number (e.g. `2026-STEG-77491`).
+     - `date`: Billing date string extraction.
+     - `montant_ht`, `total_3_taxes`, `montant_ttc`: Financial amounts parsed into floats.
+  4. Returns dictionary containing raw OCR output, parsed fields, confidence metric, and mapped values ready for database insertion.
+- **Activation Trigger**: Called inside `upload_invoice()` in `routers/invoices.py` immediately after an invoice file is saved.
+- **Why this method?**: Auto-parsing fields reduces manual data entry effort for users while allowing them to review and edit extracted figures before final submission.
+
+---
+
+### 3.10 `back/seed.py`
+
+**File Overview**:
+Seeds demo accounts and sample STÈG invoices idempotently on initial application setup.
+
+---
+
+#### Function: `_get_or_create_user(db, name, email, role) -> User`
+- **What it does**: Queries user by email. If missing, creates active user with default password `demo123`. If present, ensures status is active and role matches.
+
+#### Function: `seed(db: Session)`
+- **What it does**: Seeds demo accounts:
+  - User: `sami.rejeb@steg.tn`
+  - Admin: `admin.validation@steg.tn`
+  Seeds 3 sample STÈG invoices (`2026-STEG-77491`, `2026-STEG-55120`, `2026-STEG-33910`) with corresponding demands (`pending`, `approved`) and audit logs if the user has 0 invoices.
+- **Activation Trigger**: Called by app `lifespan` on startup if `settings.SEED` is enabled.
+
+---
+
+### 3.11 `back/run.py`
+
+**File Overview**:
+CLI startup utility executing `uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=True)`.
+
+---
+
+### 3.12 `back/routers/auth.py`
+
+**File Overview**:
+Contains API endpoints for user registration, authentication, session identity retrieval, and profile updates.
+
+---
+
+#### Endpoint: `POST /auth/register` (`register`)
+- **What it does**: Registers a new user account. Hashes password using bcrypt. Defaults role to `user` and `account_status` to `active`. Returns JWT access token and user identity.
+- **Activation Trigger**: Triggered by user filling registration form on frontend auth modal.
+- **Example**:
+  ```bash
+  curl -X POST http://127.0.0.1:8000/auth/register \
+    -H "Content-Type: application/json" \
+    -d '{"full_name": "New User", "email": "user@steg.tn", "password": "password123"}'
+  ```
+
+---
+
+#### Endpoint: `POST /auth/login` (`login`)
+- **What it does**: Validates email and bcrypt password. Checks account status (`account_status == 'active'`). Issues signed JWT token.
+- **Activation Trigger**: Triggered by user signing in on frontend auth modal.
+
+---
+
+#### Endpoint: `GET /auth/me` (`get_me`)
+- **What it does**: Returns identity profile of authenticated user.
+- **Activation Trigger**: Triggered by frontend on page load (`restoreSession()`) to verify JWT session validity.
+
+---
+
+#### Endpoint: `PATCH /auth/me` (`update_me`)
+- **What it does**: Allows authenticated user to update their full name.
+- **Activation Trigger**: Triggered from account profile modal on frontend.
+
+---
+
+### 3.13 `back/routers/invoices.py`
+
+**File Overview**:
+Handles file upload, OCR extraction execution, invoice listing, inspection, value confirmation, and deletion.
+
+---
+
+#### Endpoint: `POST /invoices/upload` (`upload_invoice`)
+- **What it does**: Saves uploaded PDF/image file, creates `Invoice` record in status `uploaded`, runs `run_ocr()`, auto-populates mapped OCR values, and returns `InvoiceUploadResponse` containing invoice details and OCR extraction output.
+- **Activation Trigger**: Triggered when user selects/drops a file on frontend dropzone.
+
+---
+
+#### Endpoint: `GET /invoices/mine` (`list_my_invoices`)
+- **What it does**: Queries all invoices owned by current user using `selectinload(Invoice.demand)`. Returns list sorted newest first.
+- **Activation Trigger**: Triggered when dashboard loads user's invoice directory table.
+
+---
+
+#### Endpoint: `GET /invoices/{invoice_id}` (`get_invoice`)
+- **What it does**: Fetches single invoice details. Enforces owner or admin access check (`_own_invoice_or_404`).
+- **Activation Trigger**: Triggered when user/admin clicks "Inspect Invoice" button.
+
+---
+
+#### Endpoint: `PUT /invoices/{invoice_id}/values` (`update_invoice_values`)
+- **What it does**: Persists confirmed extraction values submitted by user. **Crucial Workflow Logic**: Automatically creates or resets the associated `Demand` status to **`pending`** and sets `invoice.status = "pending"`, immediately pushing the invoice into the **Admin Review Queue**. Writes audit log entry `USER_MODIFIED_DEMAND`.
+- **Activation Trigger**: Triggered when user clicks **Confirm & Save Validated Values** in OCR verification panel.
+- **Why this method?**: Fulfills requirement 2 by eliminating manual intermediate steps: confirming extracted OCR figures automatically queues the demand for admin review.
+
+---
+
+#### Endpoint: `DELETE /invoices/{invoice_id}` (`delete_my_invoice`)
+- **What it does**: Deletes an invoice owned by current user (cascade deletes linked demand and audit logs).
+- **Activation Trigger**: Triggered when user clicks "Delete Facture" button.
+
+---
+
+### 3.14 `back/routers/demands.py`
+
+**File Overview**:
+Handles explicit demand creation and personal demand list management.
+
+---
+
+#### Endpoint: `POST /demands` (`submit_demand`)
+- **What it does**: Submits or re-submits a demand for an invoice. Sets demand status and invoice status to `pending`, records submission timestamp, and logs audit event `USER_MODIFIED_DEMAND`.
+- **Activation Trigger**: Triggered if user manually clicks "Submit Demand" button on an unsubmitted invoice.
+
+---
+
+#### Endpoint: `GET /demands/mine` (`list_my_demands`)
+- **What it does**: Returns all demands belonging to authenticated user, sorted newest first.
+- **Activation Trigger**: Triggered when user views personal demands summary.
+
+---
+
+#### Endpoint: `DELETE /demands/{demand_id}` (`delete_my_demand`)
+- **What it does**: Deletes a demand, resetting invoice status back to `uploaded`.
+- **Activation Trigger**: Triggered when user cancels a pending demand submission.
+
+---
+
+### 3.15 `back/routers/admin.py`
+
+**File Overview**:
+Contains admin-only endpoints for reviewing demands, inspecting audit logs, and managing users/invoices across the platform. Protected via `Depends(require_admin)`.
+
+---
+
+#### Endpoint: `GET /admin/demands` (`admin_list_demands`)
+- **What it does**: Retrieves demands across all users using `selectinload(Demand.invoice)` and `selectinload(Demand.requester)`. Supports filtering by status (`status_filter=pending`).
+- **Activation Trigger**: Triggered when admin views the **Admin Pending Review Queue**.
+
+---
+
+#### Endpoint: `PATCH /admin/demands/{demand_id}` (`admin_review_demand`)
+- **What it does**: Receives admin decision (`status: "approved"` or `"rejected"`). Updates `demand.status`, `demand.reviewed_by_admin_id`, `demand.reviewed_at`, and `invoice.status`. Writes audit log entry (`APPROVED_DEMAND` or `REJECTED_DEMAND`).
+- **Activation Trigger**: Triggered when admin clicks **Approve** or **Reject** button in either the **Admin Review Queue** or the **OCR File Management** view table.
+- **Why this method?**: Enforces requirement 2: only admins have authorization to approve or reject pending demands. State transitions are atomic and audited.
+- **Example**:
+  ```bash
+  curl -X PATCH http://127.0.0.1:8000/admin/demands/1 \
+    -H "Authorization: Bearer <ADMIN_JWT>" \
+    -H "Content-Type: application/json" \
+    -d '{"status": "approved"}'
+  ```
+
+---
+
+#### Endpoint: `GET /admin/audit` (`admin_audit_logs`)
+- **What it does**: Returns full chronological audit trail of system events and admin decisions.
+- **Activation Trigger**: Triggered when admin views the System Audit Log panel.
+
+---
+
+#### Endpoints: User & Invoice Management
+- `GET /admin/users`, `POST /admin/users`, `PATCH /admin/users/{id}`, `DELETE /admin/users/{id}`: Enables administrators to view, create, edit, activate/ban user accounts.
+- `GET /admin/invoices`, `POST /admin/invoices`, `PATCH /admin/invoices/{id}`, `DELETE /admin/invoices/{id}`: Enables administrators to view, create, update, or remove invoice records directly.
+
+---
+
+### 3.16 `back/routers/dashboard.py`
+
+**File Overview**:
+Provides analytical summary metrics for dashboard cards and Power BI intelligence widgets.
+
+---
+
+#### Endpoint: `GET /dashboard/me` (`get_my_dashboard_stats`)
+- **What it does**: Computes aggregate metrics for authenticated user:
+  - `total_invoices`: Count of user's uploaded invoices.
+  - `pending_demands`: Count of user's demands in `pending` status.
+  - `validated_demands`: Count of user's demands in `approved` or `validated` status.
+  - `total_kwh`: Sum of `kwh_consumed` across user's invoices.
+- **Activation Trigger**: Triggered when user opens the Overview Dashboard.
+- **Why this method?**: Computes aggregations directly in SQL database engine using SQLAlchemy `func.count()` and `func.sum()`, maximizing query efficiency.
+
+---
+
+## 4. End-to-End Workflow & Execution Trace
+
+1. **User Login**: User submits credentials to `POST /auth/login`. Server verifies bcrypt hash, returns JWT token stored in browser `localStorage`.
+2. **Invoice Upload**: User uploads file to `POST /invoices/upload`. Server streams file to `uploads/`, runs Tesseract OCR engine, auto-extracts billing figures, and returns invoice object.
+3. **Values Confirmation**: User inspects extracted OCR fields and clicks "Confirm & Save Validated Values". Frontend calls `PUT /invoices/{id}/values`. Backend updates values, creates/sets demand to `pending`, and updates invoice status to `pending`.
+4. **Admin Review Queue**: Admin opens review panel (`GET /admin/demands?status=pending`). The pending demand appears in the queue.
+5. **Admin Decision**: Admin clicks "Approve". Frontend sends `PATCH /admin/demands/{id}` with `{"status": "approved"}`. Backend sets demand and invoice status to `approved`, logs audit event `APPROVED_DEMAND`, and commits transaction.
+6. **Dashboard Refresh**: User dashboard queries `GET /invoices/mine` and `GET /dashboard/me`, showing updated status **Approved** with live DB metrics.

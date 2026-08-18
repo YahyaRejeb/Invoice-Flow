@@ -85,11 +85,6 @@ def admin_review_demand(
     )
     if demand is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demand not found")
-    if demand.status != "pending":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Demand already reviewed (status={demand.status})",
-        )
 
     old_status = demand.status
     demand.status = decision.status
@@ -101,7 +96,7 @@ def admin_review_demand(
         db,
         demand=demand,
         actor_id=admin.user_id,
-        action="VALIDATED_DEMAND" if decision.status == "validated" else "REJECTED_DEMAND",
+        action="APPROVED_DEMAND" if decision.status in ("approved", "validated") else "REJECTED_DEMAND",
         field_changed="status",
         old_value=old_status,
         new_value=decision.status,
@@ -234,7 +229,9 @@ def admin_list_invoices(db: DbDep, admin: User = Depends(require_admin)):
             invoice_id=invoice.invoice_id,
             user_id=invoice.user_id,
             file_name=invoice.file_name,
+            file_path=invoice.file_path,
             supplier=invoice.supplier,
+            address=invoice.address,
             invoice_no=invoice.invoice_no,
             invoice_date=invoice.invoice_date,
             amount_excl_tax=invoice.amount_excl_tax,
@@ -269,6 +266,7 @@ def admin_create_invoice(
         user_id=payload.user_id,
         file_path=payload.file_path,
         supplier=payload.supplier,
+        address=payload.address,
         invoice_no=payload.invoice_no,
         invoice_date=payload.invoice_date,
         amount_excl_tax=payload.amount_excl_tax,
@@ -287,7 +285,9 @@ def admin_create_invoice(
         invoice_id=invoice.invoice_id,
         user_id=invoice.user_id,
         file_name=invoice.file_name,
+        file_path=invoice.file_path,
         supplier=invoice.supplier,
+        address=invoice.address,
         invoice_no=invoice.invoice_no,
         invoice_date=invoice.invoice_date,
         amount_excl_tax=invoice.amount_excl_tax,
@@ -328,7 +328,9 @@ def admin_update_invoice(
         invoice_id=invoice.invoice_id,
         user_id=invoice.user_id,
         file_name=invoice.file_name,
+        file_path=invoice.file_path,
         supplier=invoice.supplier,
+        address=invoice.address,
         invoice_no=invoice.invoice_no,
         invoice_date=invoice.invoice_date,
         amount_excl_tax=invoice.amount_excl_tax,

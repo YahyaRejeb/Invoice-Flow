@@ -59,6 +59,7 @@ const Admin = {
       }
     }
     document.getElementById('adminInvoiceSupplier').value = 'STEG';
+    document.getElementById('adminInvoiceAddress').value = '';
     document.getElementById('adminInvoiceNo').value = '';
     document.getElementById('adminInvoiceDate').value = '';
     document.getElementById('adminInvoiceStatus').value = 'uploaded';
@@ -72,7 +73,7 @@ const Admin = {
   },
 
   async saveUser() {
-    if (!window.Auth || Auth.isGuest() || Auth.currentUser?.role !== 'admin') return;
+    if (!window.Auth || !Auth.isAuthenticated() || Auth.currentUser?.role !== 'admin') return;
 
     const id = document.getElementById('adminUserId').value;
     const payload = {
@@ -103,7 +104,7 @@ const Admin = {
   },
 
   async saveInvoice() {
-    if (!window.Auth || Auth.isGuest()) return;
+    if (!window.Auth || !Auth.isAuthenticated()) return;
     const isAdmin = Auth.currentUser?.role === 'admin';
     const id = document.getElementById('adminInvoiceId').value;
 
@@ -113,11 +114,17 @@ const Admin = {
     };
 
     if (isAdmin) {
+      let dateVal = document.getElementById('adminInvoiceDate').value;
+      if (dateVal && dateVal.length === 7) {
+        dateVal += '-01';
+      }
+
       const payload = {
         user_id: Number(document.getElementById('adminInvoiceUserId').value) || Auth.currentUser.id,
         supplier: document.getElementById('adminInvoiceSupplier').value.trim() || 'STEG',
+        address: document.getElementById('adminInvoiceAddress').value.trim() || null,
         invoice_no: document.getElementById('adminInvoiceNo').value.trim() || null,
-        invoice_date: document.getElementById('adminInvoiceDate').value || null,
+        invoice_date: dateVal || null,
         status: document.getElementById('adminInvoiceStatus').value,
         amount_excl_tax: num('adminInvoiceAmountExclTax'),
         tva: num('adminInvoiceTva'),
@@ -153,6 +160,7 @@ const Admin = {
 
       const payload = {
         supplier: document.getElementById('adminInvoiceSupplier').value.trim() || 'STEG',
+        address: document.getElementById('adminInvoiceAddress').value.trim() || null,
         invoice_no: document.getElementById('adminInvoiceNo').value.trim() || null,
         invoice_date: document.getElementById('adminInvoiceDate').value || null,
         amount_excl_tax: num('adminInvoiceAmountExclTax') || 0,
@@ -194,7 +202,7 @@ const Admin = {
   },
 
   async fetchQueueFromBackend() {
-    if (!window.Auth || Auth.isGuest() || Auth.currentUser?.role !== 'admin') return;
+    if (!window.Auth || !Auth.isAuthenticated() || Auth.currentUser?.role !== 'admin') return;
 
     try {
       const res = await Auth.apiFetch('/admin/demands');
@@ -221,7 +229,7 @@ const Admin = {
                 <td><strong style="font-family: var(--font-mono); color:var(--text-main);">${UI.formatTND(d.amount_incl_tax || 0)}</strong></td>
                 <td><span class="badge badge-pending"><i class="fa-solid fa-hourglass"></i> Pending Review</span></td>
                 <td style="text-align: right;">
-                  <button class="btn btn-success btn-sm" onclick="Admin.reviewDemand(${d.demand_id}, 'validated')">
+                  <button class="btn btn-success btn-sm" onclick="Admin.reviewDemand(${d.demand_id}, 'approved')">
                     <i class="fa-solid fa-check"></i> Approve
                   </button>
                   <button class="btn btn-danger btn-sm" onclick="Admin.reviewDemand(${d.demand_id}, 'rejected')">
@@ -255,7 +263,7 @@ const Admin = {
   },
 
   async fetchAdminUsers() {
-    if (!window.Auth || Auth.isGuest() || Auth.currentUser?.role !== 'admin') return;
+    if (!window.Auth || !Auth.isAuthenticated() || Auth.currentUser?.role !== 'admin') return;
     try {
       const res = await Auth.apiFetch('/admin/users');
       if (!res.ok) return;
@@ -363,7 +371,7 @@ const Admin = {
   },
 
   async fetchAdminInvoices() {
-    if (!window.Auth || Auth.isGuest()) return;
+    if (!window.Auth || !Auth.isAuthenticated()) return;
     const isAdmin = Auth.currentUser?.role === 'admin';
     const endpoint = isAdmin ? '/admin/invoices' : '/invoices/mine';
 
@@ -385,7 +393,9 @@ const Admin = {
         user_name: i.user_name || Auth.currentUser.name,
         user_email: i.user_email || Auth.currentUser.email,
         file_name: i.file_name,
+        file_path: i.file_path,
         supplier: i.supplier || 'STEG',
+        address: i.address || '',
         invoice_no: i.invoice_no || `INV-${i.invoice_id}`,
         invoice_date: i.invoice_date || null,
         amount_excl_tax: i.amount_excl_tax || 0,
@@ -404,7 +414,7 @@ const Admin = {
       if (!tbody) return;
 
       if (this.adminInvoices.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 1.2rem; color: var(--text-dim);">No invoices found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 1.2rem; color: var(--text-dim);">No invoices found.</td></tr>';
         return;
       }
 
@@ -412,22 +422,52 @@ const Admin = {
         <tr>
           <td><strong>#${invoice.invoice_id}</strong></td>
           <td>${invoice.user_name || invoice.user_email || ('User #' + invoice.user_id)}</td>
-          <td><strong style="color:var(--accent-cyan);">${invoice.invoice_no || '-'}</strong></td>
+          <td>
+            <strong style="color:var(--accent-cyan);">${invoice.invoice_no || '-'}</strong>
+            <div style="font-size:0.75rem; color:var(--text-dim); max-width:240px;">${invoice.address || '-'}</div>
+          </td>
           <td>${UI.formatDate(invoice.invoice_date)}</td>
-          <td><strong>${invoice.kwh_consumed != null ? invoice.kwh_consumed + ' kWh' : '-'}</strong></td>
-          <td><span class="badge badge-${invoice.status}">${(invoice.status || 'uploaded').toUpperCase()}</span></td>
+          <td>${this.demandStatusBadge(invoice.demand_id, invoice.demand_status)}</td>
           <td><strong style="font-family:var(--font-mono);">${UI.formatTND(invoice.amount_incl_tax || 0)}</strong></td>
           <td style="text-align:right;">
             <button class="btn btn-secondary btn-sm" onclick="Admin.inspectInvoice(${invoice.invoice_id})">Inspect</button>
             <button class="btn btn-secondary btn-sm" onclick="Admin.viewInvoiceFile(${invoice.invoice_id})">View File</button>
             <button class="btn btn-secondary btn-sm" onclick="Admin.editInvoice(${invoice.invoice_id})">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="Admin.deleteInvoice(${invoice.invoice_id})" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">Delete</button>
+            ${isAdmin && invoice.demand_id && invoice.demand_status === 'pending' ? `
+              <button class="btn btn-success btn-sm" onclick="Admin.reviewDemand(${invoice.demand_id}, 'approved')" title="Approve Demand">
+                <i class="fa-solid fa-check"></i> Approve
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="Admin.reviewDemand(${invoice.demand_id}, 'rejected')" title="Reject Demand">
+                <i class="fa-solid fa-xmark"></i> Reject
+              </button>
+            ` : ''}
+            ${!isAdmin && !invoice.demand_id ? `
+              <button class="btn btn-primary btn-sm" onclick="Dashboard.submitDemand('${invoice.invoice_id}')">
+                <i class="fa-solid fa-paper-plane"></i> Submit Demand
+              </button>
+            ` : ''}
           </td>
         </tr>
       `).join('');
     } catch (e) {
       console.warn('Failed to load invoices:', e);
     }
+  },
+
+  demandStatusBadge(demandId, demandStatus) {
+    if (!demandId) return '<span class="badge badge-uploaded">NOT SUBMITTED</span>';
+
+    const status = demandStatus || 'pending';
+    return `<span class="badge badge-${status}">DEM-${demandId} ${this.demandStatusLabel(status)}</span>`;
+  },
+
+  demandStatusLabel(status) {
+    return {
+      pending: 'PENDING',
+      validated: 'APPROVED',
+      rejected: 'REJECTED'
+    }[status] || (status || 'pending').toUpperCase();
   },
 
   editInvoice(id) {
@@ -445,9 +485,10 @@ const Admin = {
     userIdInput.style.cursor = isAdmin ? '' : 'not-allowed';
 
     document.getElementById('adminInvoiceSupplier').value = invoice.supplier || 'STEG';
+    document.getElementById('adminInvoiceAddress').value = invoice.address || '';
     document.getElementById('adminInvoiceNo').value = invoice.invoice_no || '';
-    document.getElementById('adminInvoiceDate').value = invoice.invoice_date || '';
-    document.getElementById('adminInvoiceStatus').value = invoice.status || 'uploaded';
+    document.getElementById('adminInvoiceDate').value = invoice.invoice_date ? invoice.invoice_date.substring(0, 7) : '';
+    document.getElementById('adminInvoiceStatus').value = invoice.status === 'validated_by_user' ? 'uploaded' : (invoice.status || 'uploaded');
     document.getElementById('adminInvoiceAmountExclTax').value = invoice.amount_excl_tax != null ? invoice.amount_excl_tax : '';
     document.getElementById('adminInvoiceTva').value = invoice.tva != null ? invoice.tva : '';
     document.getElementById('adminInvoiceAmount').value = invoice.amount_incl_tax != null ? invoice.amount_incl_tax : '';
@@ -491,17 +532,15 @@ const Admin = {
       ['Submitted By', invoice.user_name || '-'],
       ['User Email', invoice.user_email || '-'],
       ['Supplier', invoice.supplier || '-'],
+      ['Address', invoice.address || '-'],
       ['Invoice No', invoice.invoice_no || '-'],
       ['Invoice Date', invoice.invoice_date || '-'],
       ['Amount Excl. Tax (HT)', UI.formatTND(invoice.amount_excl_tax || 0)],
       ['TVA Tax', UI.formatTND(invoice.tva || 0)],
       ['Total Incl. Tax (TTC)', UI.formatTND(invoice.amount_incl_tax || 0)],
       ['Currency', invoice.currency || '-'],
-      ['Consumption', invoice.kwh_consumed != null ? invoice.kwh_consumed + ' kWh' : '-'],
-      ['Due Date', invoice.due_date || '-'],
-      ['Status', invoice.status || '-'],
       ['Uploaded At', UI.formatDate(invoice.uploaded_at)],
-      ['Demand', invoice.demand_id ? `DEM-${invoice.demand_id} (${invoice.demand_status || 'pending'})` : 'None'],
+      ['Demand Status', invoice.demand_id ? `DEM-${invoice.demand_id} ${this.demandStatusLabel(invoice.demand_status)}` : 'Not submitted'],
     ];
 
     modalBody.innerHTML = `
@@ -596,8 +635,9 @@ const Admin = {
         body: JSON.stringify({ status: newStatus })
       });
       if (res.ok) {
-        UI.showToast(`Demand DEM-${demandId} marked as ${newStatus.toUpperCase()} in StegDB`, newStatus === 'validated' ? 'success' : 'danger');
+        UI.showToast(`Demand DEM-${demandId} marked as ${newStatus.toUpperCase()} in StegDB`, (newStatus === 'approved' || newStatus === 'validated') ? 'success' : 'danger');
         await this.fetchQueueFromBackend();
+        await this.fetchAdminInvoices();
         if (window.Dashboard) window.Dashboard.fetchDataFromBackend();
       } else {
         const err = await res.json();
@@ -623,7 +663,7 @@ const Admin = {
         <td><span style="font-family:var(--font-mono); font-weight:700; color:var(--text-muted);">${log.audit_log_id}</span></td>
         <td><strong style="color:var(--accent-cyan);">${log.demand_id}</strong></td>
         <td>${log.actor_id}</td>
-        <td><span class="badge badge-${log.new_value === 'validated' ? 'validated' : 'rejected'}">${log.action}</span></td>
+        <td><span class="badge badge-${(log.new_value === 'approved' || log.new_value === 'validated') ? 'validated' : 'rejected'}">${log.action}</span></td>
         <td><span style="color:var(--text-dim);">${log.old_value}</span> &rarr; <strong style="color:var(--text-main);">${log.new_value}</strong></td>
         <td>${UI.formatDate(log.timestamp)}</td>
       </tr>
@@ -632,4 +672,3 @@ const Admin = {
 };
 
 window.Admin = Admin;
-

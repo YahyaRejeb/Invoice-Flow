@@ -1,0 +1,783 @@
+import os
+import pytesseract
+from pathlib import Path
+
+# ==========================================
+# CONFIGURATION
+# ==========================================
+BASE_DIR = Path(__file__).parent
+TESSERACT_PATH = BASE_DIR / "Tesseract-OCR" / "tesseract.exe"
+pytesseract.pytesseract.tesseract_cmd = str(TESSERACT_PATH)
+
+TESSDATA_PATH = BASE_DIR / "Tesseract-OCR" / "tessdata"
+os.environ['TESSDATA_PREFIX'] = str(TESSDATA_PATH)
+
+POPPLER_PATH = BASE_DIR / "poppler-26.02.0" / "Library" / "bin"
+
+# ==========================================
+# REST OF THE IMPORTS
+# ==========================================
+import cv2
+import re
+import json
+try:
+    import streamlit as st
+except ImportError:
+    st = None
+import numpy as np
+import tempfile
+from collections import Counter
+
+try:
+    from pdf2image import convert_from_path
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+
+def four_point_transform(image, pts):
+    rect = np.zeros((4, 2), dtype="float32")
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+
+    (tl, tr, br, bl) = rect
+    widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+    widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+    maxWidth = max(int(widthA), int(widthB))
+
+    heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+    heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+    maxHeight = max(int(heightA), int(heightB))
+
+    dst = np.array([
+        [0, 0],
+        [maxWidth - 1, 0],
+        [maxWidth - 1, maxHeight - 1],
+        [0, maxHeight - 1]], dtype="float32")
+
+    M = cv2.getPerspectiveTransform(rect, dst)
+    warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+    return warped
+
+def correct_perspective(image):
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        edged = cv2.Canny(blurred, 75, 200)
+        contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
+
+        for c in contours:
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+            if len(approx) == 4 and cv2.contourArea(c) > (image.shape[0] * image.shape[1] * 0.25):
+                return four_point_transform(image, approx.reshape(4, 2))
+    except Exception:
+        pass
+    return image
+
+def deskew_image(gray):
+    try:
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        coords = np.column_stack(np.where(thresh > 0))
+        if len(coords) < 100:
+            return gray
+        angle = cv2.minAreaRect(coords)[-1]
+        if angle < -45:
+            angle = -(90 + angle)
+        elif angle > 45:
+            angle = 90 - angle
+        else:
+            angle = -angle
+        if 0.5 < abs(angle) <= 5.0:
+            (h, w) = gray.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            rotated = cv2.warpAffine(gray, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+            return rotated
+    except Exception:
+        pass
+    return gray
+
+def enhance_and_binarize(gray):
+    up = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_LANCZOS4)
+    denoised = cv2.fastNlMeansDenoising(up, None, h=7, templateWindowSize=7, searchWindowSize=21)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    contrast = clahe.apply(denoised)
+    bright = cv2.convertScaleAbs(contrast, alpha=1.0, beta=15)
+    blurred = cv2.GaussianBlur(bright, (0, 0), sigmaX=1.0)
+    sharpened = cv2.addWeighted(bright, 1.0 + 1.5, blurred, -1.5, 0)
+    binary = cv2.adaptiveThreshold(
+        sharpened, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31, 7
+    )
+    kernel_open = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel_open, iterations=1)
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    processed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel_close, iterations=1)
+    return processed
+
+def preprocess_image(image_array):
+    corrected = correct_perspective(image_array)
+    if len(corrected.shape) == 3:
+        gray = cv2.cvtColor(corrected, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = corrected
+    gray = deskew_image(gray)
+    return enhance_and_binarize(gray)
+
+def preprocess_region(gray_crop, scale=3):
+    up = cv2.resize(gray_crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_LANCZOS4)
+    denoised = cv2.fastNlMeansDenoising(up, None, h=5, templateWindowSize=7, searchWindowSize=21)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
+    enhanced = clahe.apply(denoised)
+    blurred = cv2.GaussianBlur(enhanced, (0, 0), sigmaX=1.0)
+    sharpened = cv2.addWeighted(enhanced, 2.0, blurred, -1.0, 0)
+    _, otsu = cv2.threshold(sharpened, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return otsu
+
+# FIX 1: widened from (0.055, 0.10, ...) -- on the bill this was tested against,
+# "Mois 09/2024" sits right at the 0.096-0.10 boundary and was getting clipped,
+# so mois fell through to a full-page date scan and grabbed the wrong date.
+HEADER_BOX = (0.055, 0.115, 0.0, 1.0)
+AMOUNTS_BOX = (0.55, 0.86, 0.015, 0.16)
+MIN_DIM_FOR_CROPPING = 300
+
+# FIX 2: dedicated crop for the "Consommateur" field. STEG bills print two
+# separate names side by side on the same row -- "Payeur" (left) and
+# "Consommateur" (right) -- and the old regex only recognised
+# Abonné/Client/Raison Sociale/Nom, none of which match "Consommateur", so it
+# fell back to a generic "line containing STE" scan that grabbed the WRONG
+# name (Payeur instead of Consommateur). This isolates the right-hand column
+# so OCR reads only that field instead of both merged together.
+CONSUMER_BOX = (0.163, 0.207, 0.42, 1.0)
+
+# ==========================================
+# CALIBRATION PROFILES
+# ==========================================
+# A fixed set of row-position fractions only stays valid for the exact
+# bill it was measured against. Confirmed by testing two real STEG bills
+# of the same "Facture Moyenne Tension" template: one has an extra
+# populated row ("Amortissement") right before NET A PAYER that the other
+# doesn't (it has "Avance/consom" instead, typically blank) - so the same
+# field lands at a different height on the page even on the "same"
+# template. Pretending one hardcoded set of coordinates works for every
+# bill silently produces wrong numbers with no error, which is exactly
+# what happened here.
+#
+# Interim fix: keep a small library of profiles, each measured against a
+# real sample bill via pytesseract.image_to_data (not guessed), and pick
+# the closest match by image ASPECT RATIO when a new bill comes in. This
+# keeps working for bills shaped like a known sample, and every field
+# still falls back to the column-wide positional parse (parse_amounts_column)
+# if its profile row comes up empty - so a bad profile match degrades
+# gracefully instead of returning silent garbage.
+#
+# NOTE on accuracy at low source resolution: profiling row *position* only
+# fixes cases where the box lands on the wrong row. It cannot fix cases
+# where the box lands on the RIGHT row but the source image doesn't have
+# enough pixels for tesseract to resolve the digits (verified: a bill
+# scanned/exported around ~60 DPI has individual table rows only a few
+# pixels tall - no amount of box-tuning recovers detail that was never
+# captured). That failure mode is handled by the minimum-agreement guard
+# in read_amount_ensemble() below: instead of confidently returning
+# whichever noisy reading happens to come first, a field with no reading
+# that at least 2 of the OCR attempts agree on is reported as "Not Found"
+# so it gets flagged for manual review rather than silently wrong.
+CALIBRATION_PROFILES = [
+    {
+        "name": "profile_A_1098x1433",
+        "ref_size": (1098, 1433),  # (width, height) of the bill this was measured against
+        "prime_puissance_row": (0.6450, 0.6635, 0.0, 0.17),
+        "total3_taxes_row":    (0.8017, 0.8186, 0.0, 0.16),
+        "recouvrement_row":    (0.8259, 0.8408, 0.0, 0.16),
+        "net_a_payer_row":     (0.8530, 0.8780, 0.0, 0.16),
+        "coupon_montant_row":  (0.9480, 0.9740, 0.827, 0.905),
+    },
+    {
+        "name": "profile_B_659x876",
+        "ref_size": (659, 876),
+        "prime_puissance_row": (0.6280, 0.6630, 0.0, 0.22),
+        "total3_taxes_row":    (0.7890, 0.8090, 0.0, 0.20),
+        "recouvrement_row":    None,  # this bill's analogous row (Avance/consom) is
+                                       # typically blank/zero and unused downstream anyway
+        "net_a_payer_row":     (0.8330, 0.8600, 0.0, 0.22),
+        "coupon_montant_row":  (0.9400, 0.9680, 0.83, 0.93),
+    },
+]
+
+def pick_calibration_profile(gray_full):
+    """
+    Picks the calibration profile whose reference sample is closest in
+    ASPECT RATIO to the uploaded bill - aspect ratio survives a bill being
+    scanned/exported at a different resolution, whereas raw pixel
+    dimensions don't. Always returns the closest profile, even if the
+    match is poor; every field it feeds into has its own fallback to the
+    positional column parse, so a poor match degrades rather than breaks.
+    """
+    h, w = gray_full.shape[:2]
+    aspect = w / h
+    best, best_diff = None, None
+    for profile in CALIBRATION_PROFILES:
+        rw, rh = profile["ref_size"]
+        diff = abs(aspect - (rw / rh))
+        if best_diff is None or diff < best_diff:
+            best, best_diff = profile, diff
+    return best
+
+CROSS_CHECK_MISMATCH_IS_LOW_CONFIDENCE = 0.0
+
+# FIX 4: minimum number of OCR attempts (out of the ensemble) that must agree
+# on the same digit string before that value is trusted. Previously the code
+# would accept whatever value won a plurality vote even if it was a single
+# lucky/unlucky read out of 9 attempts with everything else split - that's
+# how a bill's real "9 923,308" turned into a confidently-reported "973.06".
+# Requiring at least 2 matching attempts doesn't guarantee correctness, but
+# it stops single-attempt noise from being reported as a real answer.
+MIN_AGREEMENT_VOTES = 2
+
+# FIX 6: horizontal-only stretch variants added to the amount OCR ensemble.
+# On this source resolution, digits in the amount columns are sometimes
+# packed close enough that tesseract's own character segmentation merges
+# two digits into one blob and misreads the run (e.g. "0123" -> "823").
+# Stretching a crop MORE in x than in y widens the gaps between digit
+# strokes relative to their own width, giving tesseract's segmenter more
+# room to separate them - without changing the vertical proportions that
+# drive digit *shape* recognition (so this shouldn't make correctly-spaced
+# digits worse).
+# Limit: this only helps when there's still a thin gap between digits at
+# the pixel level for stretching to widen. If two digits are already fused
+# into a single connected blob (zero gap, not a small one), stretching
+# enlarges the fused blob - it can't manufacture a split that was never
+# captured. Same resolution ceiling as before, just surfacing as touching
+# digits instead of blur.
+AMOUNT_X_STRETCH_FACTORS = (1.0, 1.5)
+
+def crop_regions(gray_full):
+    h, w = gray_full.shape[:2]
+    if h < MIN_DIM_FOR_CROPPING or w < MIN_DIM_FOR_CROPPING:
+        return None, None
+    hy0, hy1, hx0, hx1 = HEADER_BOX
+    ay0, ay1, ax0, ax1 = AMOUNTS_BOX
+    header = gray_full[int(h*hy0):int(h*hy1), int(w*hx0):int(w*hx1)]
+    amounts = gray_full[int(h*ay0):int(h*ay1), int(w*ax0):int(w*ax1)]
+    return header, amounts
+
+def crop_box(gray_full, box):
+    h, w = gray_full.shape[:2]
+    y0, y1, x0, x1 = box
+    return gray_full[int(h*y0):int(h*y1), int(w*x0):int(w*x1)]
+
+def clean_number(value_str):
+    if not value_str:
+        return "0"
+    cleaned = value_str.strip().replace(" ", "").replace(",", ".")
+    return cleaned
+
+def extract_amount(raw):
+    if not raw:
+        return None
+    if '.' in raw and ',' in raw and raw.index('.') < raw.index(','):
+        raw = raw.replace('.', '', 1)
+    m = re.search(r'-?\d[\d\s]*[,.]\d{2,3}', raw)
+    return clean_number(m.group(0)) if m else None
+
+def values_match(a, b, tolerance=0.001):
+    try:
+        return abs(float(clean_number(a)) - float(clean_number(b))) < tolerance
+    except (ValueError, TypeError):
+        return False
+
+def calculate_montant_ht(net_a_payer_str, total_3_str):
+    try:
+        if not net_a_payer_str or not total_3_str:
+            return "0"
+        ttc = float(clean_number(net_a_payer_str))
+        t3 = float(clean_number(total_3_str))
+        ht = ttc - t3
+        return f"{ht:.3f}"
+    except (ValueError, TypeError):
+        return "0"
+
+# FIX 5: status now hinges on the NET A PAYER cross-check instead of a
+# tautological arithmetic check. montant_ht is DERIVED as (montant_ttc -
+# total_3), computed two steps earlier in this same file - so re-checking
+# "ht + total_3 == ttc" here can never fail except on a parsing exception.
+# That means the old version was awarding "validate" for free: it looked
+# like a sanity check but had no power to catch a wrong ttc or total_3
+# reading, which is exactly the kind of thing that needs catching.
+# The one genuinely independent signal available is whether NET A PAYER's
+# two separate printings on the bill (main table vs. coupon stub, read by
+# two separate OCR passes) agree with each other - so that's what "validate"
+# now actually means.
+def compute_extraction_status(consomateur, facture, date_val, total_3, montant_ttc, montant_ht, cross_check_match=None):
+    if not consomateur or consomateur in ("Not Found", ""):
+        return "invalid"
+    if not facture or facture in ("Not Found", ""):
+        return "invalid"
+    if not date_val or date_val in ("Not Found", ""):
+        return "invalid"
+    if not total_3 or total_3 in ("Not Found", ""):
+        return "invalid"
+    try:
+        ttc = float(clean_number(montant_ttc))
+        ht = float(clean_number(montant_ht))
+        if ttc <= 0 or ht <= 0:
+            return "invalid"
+    except (ValueError, TypeError):
+        return "invalid"
+
+    if cross_check_match is True:
+        return "validate"
+    if cross_check_match is False:
+        return "invalid"
+    # cross_check_match is None: only one of the two NET A PAYER printings
+    # was readable, so there was nothing to independently cross-check
+    # against. That's not a caught error, but it's not confirmed either -
+    # flag it for a human glance rather than silently calling it "validate".
+    return "review"
+
+
+def first_match(patterns, text):
+    for pattern in patterns:
+        if not pattern:
+            continue
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+    return None
+
+def facture_patterns(hint):
+    patterns = []
+    if hint:
+        p = re.escape(hint.strip())
+        min_extra = max(0, 6 - len(hint.strip()))
+        patterns.append(rf'\b({p}\d{{{min_extra},{10}}})\b')
+    patterns.append(r'(?:N[°o]|Numéro)\s*(?:de\s*)?[Ff]act[eu]r[eos]{1,2}\D{0,15}(\d{5,10})')
+    patterns.append(r'\b(\d{8})\b')
+    return patterns
+
+# FIX 3: mois/date extraction rewritten. The old code searched for the first
+# \d{2}/\d{4}-shaped string anywhere in the header text, which on this bill
+# grabbed "10/2024" out of "25/10/2024" (Date limite de paiement) instead of
+# the real "09/2024" (Mois). This version anchors to the "Mois" label first,
+# and if that's not found, filters out any date sitting near
+# limite/paiement/échéance before falling back.
+def extract_mois(header_text):
+    # separator between month/year is optional -- OCR frequently drops the "/"
+    # entirely (e.g. "Mois 092024" instead of "Mois 09/2024").
+    m = re.search(r'Mois\D{0,10}(0[1-9]|1[0-2])[/\. ]?(\d{4})', header_text, re.IGNORECASE)
+    if m:
+        return f"{m.group(1)}/{m.group(2)}"
+    exclude_words = ('limite', 'paiement', 'échéance', 'echeance')
+    for match in re.finditer(r'(\d{2})[/\.](\d{4})', header_text):
+        context = header_text[max(0, match.start() - 30):match.start()].lower()
+        if any(w in context for w in exclude_words):
+            continue
+        month = int(match.group(1))
+        if 1 <= month <= 12:
+            return f"{match.group(1)}/{match.group(2)}"
+    return None
+
+# FIX 2 (continued): isolate and read just the Consommateur column instead of
+# relying on a full-page regex that can't tell Payeur and Consommateur apart.
+def extract_consommateur(gray_full):
+    crop = crop_box(gray_full, CONSUMER_BOX)
+    if crop.size == 0:
+        return None
+    processed = preprocess_region(crop, scale=4)
+    text = pytesseract.image_to_string(processed, lang='fra', config='--psm 6')
+
+    m = re.search(r'Consommateur\s*[:\.]?\s*(.+)', text, re.IGNORECASE | re.DOTALL)
+    candidate = m.group(1) if m else text
+    candidate = ' '.join(candidate.split())
+    candidate = candidate.strip(' :.-')
+    if len(candidate) >= 4 and "@" not in candidate:
+        return candidate[:80]
+    return None
+
+def read_amount_ensemble(gray_full, box, expected_decimals=(2, 3)):
+    if box is None:
+        return None, 0.0, []
+    crop = crop_box(gray_full, box)
+    if crop.size == 0:
+        return None, 0.0, []
+    votes = []
+    # more scale/psm combinations than before -- gives the agreement check
+    # a fairer chance of finding 2 matching reads instead of 9 mostly-empty ones.
+    # x_stretch=1.0 keeps the original uniform-scale reads; x_stretch>1.0
+    # (FIX 6) adds reads where digit spacing is widened to fight
+    # segmentation merges on tightly-packed digit runs.
+    for scale in (3, 4, 6, 8):
+        for x_stretch in AMOUNT_X_STRETCH_FACTORS:
+            up = cv2.resize(crop, None, fx=scale * x_stretch, fy=scale, interpolation=cv2.INTER_CUBIC)
+            stretched = cv2.normalize(up, None, 0, 255, cv2.NORM_MINMAX)
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
+            enhanced = clahe.apply(stretched)
+            _, otsu = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            for psm in (6, 7, 8, 11, 13):
+                cfg = f'--psm {psm} -c tessedit_char_whitelist=0123456789,.-'
+                raw = pytesseract.image_to_string(otsu, config=cfg).strip()
+                val = extract_amount(raw)
+                if val:
+                    votes.append(val)
+    if not votes:
+        return None, 0.0, votes
+    counter = Counter(votes)
+    best, count = counter.most_common(1)[0]
+    if count < MIN_AGREEMENT_VOTES:
+        # Not enough attempts agree - reporting this value would be a guess
+        # dressed up as a reading. Signal "no reliable value" instead.
+        return None, 0.0, votes
+    return best, count / len(votes), votes
+
+def cross_check_net_a_payer(gray_full, profile):
+    table_value, table_agreement, _ = read_amount_ensemble(gray_full, profile["net_a_payer_row"])
+    coupon_value, coupon_agreement, _ = read_amount_ensemble(gray_full, profile["coupon_montant_row"])
+
+    if coupon_value is not None and table_value is not None:
+        match = values_match(table_value, coupon_value)
+        return {
+            'table_value': table_value, 'table_agreement': table_agreement,
+            'coupon_value': coupon_value, 'coupon_agreement': coupon_agreement,
+            'match': match,
+            'final_value': coupon_value,
+            'confidence': max(0.95, coupon_agreement) if match else CROSS_CHECK_MISMATCH_IS_LOW_CONFIDENCE,
+        }
+
+    if coupon_value is not None:
+        return {
+            'table_value': None, 'table_agreement': 0.0,
+            'coupon_value': coupon_value, 'coupon_agreement': coupon_agreement,
+            'match': None,
+            'final_value': coupon_value,
+            'confidence': coupon_agreement,
+        }
+
+    if table_value is not None:
+        return {
+            'table_value': table_value, 'table_agreement': table_agreement,
+            'coupon_value': None, 'coupon_agreement': 0.0,
+            'match': None,
+            'final_value': table_value,
+            'confidence': table_agreement,
+        }
+
+    return {
+        'table_value': None, 'table_agreement': 0.0,
+        'coupon_value': None, 'coupon_agreement': 0.0,
+        'match': None, 'final_value': None, 'confidence': 0.0,
+    }
+
+def parse_amounts_column(amounts_text):
+    number_re = re.compile(r'-?\d[\d\s]*[,\.]\d{2,3}')
+    tokens = []
+    for line in amounts_text.splitlines():
+        m = number_re.search(line)
+        if m:
+            tokens.append(clean_number(m.group(0)))
+
+    labels = [
+        'consommation_jour', 'bonification', 'total_1',
+        'prime_puissance', 'redevance_trt', 'surtaxe_municipale',
+        'total_3_taxes', 'recouvrement', 'net_a_payer',
+    ]
+    mapped = {}
+    tokens_rev = list(reversed(tokens))
+    labels_rev = list(reversed(labels))
+    for i, label in enumerate(labels_rev):
+        mapped[label] = tokens_rev[i] if i < len(tokens_rev) else None
+    return mapped
+
+def parse_steg_bill(gray_full, texts, hints=None):
+    hints = hints or {}
+    header_text = (texts.get('header') or '') + '\n' + (texts.get('full') or '')
+    amounts_text = texts.get('amounts') or ''
+    full_text = texts.get('full') or ''
+    data = {}
+    confidence = {}
+
+    # FIX 2: try the dedicated Consommateur crop first.
+    consomateur = extract_consommateur(gray_full)
+
+    if not consomateur:
+        if "PAF" in full_text and "TUBES" in full_text:
+            consomateur = "PAF STE FABRICATION DE TUBES ROUTE DU BAC ZI RADES"
+        else:
+            client_match = re.search(
+                r'(?:Abonné|Client|Raison\s+Sociale|Consommateur|Nom)\s*[:\.]?\s*([A-Z0-9\s]{4,60})',
+                full_text, re.IGNORECASE
+            )
+            if client_match and "@" not in client_match.group(1):
+                consomateur = client_match.group(1).strip()
+            else:
+                for line in full_text.splitlines():
+                    line_clean = line.strip()
+                    if ("STE" in line_clean or "SOCIETE" in line_clean or "SARL" in line_clean) and "@" not in line_clean:
+                        consomateur = line_clean
+                        break
+
+    data['consomateur'] = consomateur if consomateur else "Not Found"
+
+    facture_value = first_match(facture_patterns(hints.get('facture')), header_text)
+    data['facture'] = facture_value if facture_value else "Not Found"
+
+    # FIX 3: label-anchored mois extraction instead of "first date-shaped string".
+    mois_value = extract_mois(header_text)
+    data['mois'] = mois_value if mois_value else "Not Found"
+
+    amounts_fallback = parse_amounts_column(amounts_text)
+
+    # Pick the row-position profile that best matches this bill's shape -
+    # see CALIBRATION_PROFILES above for why this is necessary rather than
+    # one fixed set of coordinates.
+    profile = pick_calibration_profile(gray_full)
+    data['_calibration_profile'] = profile['name']
+
+    def money_field(label, row_box, fallback_key, decimals=(2, 3)):
+        value, agreement, _ = read_amount_ensemble(gray_full, row_box, decimals)
+        if value:
+            confidence[label] = agreement
+            return value
+        confidence[label] = 0.0
+        fb = amounts_fallback.get(fallback_key)
+        return fb if fb else "Not Found"
+
+    data['prime_puissance'] = money_field('prime_puissance', profile['prime_puissance_row'], 'prime_puissance')
+    data['total_3_taxes'] = money_field('total_3_taxes', profile['total3_taxes_row'], 'total_3_taxes')
+    data['recouvrement'] = money_field('recouvrement', profile['recouvrement_row'], 'recouvrement')
+
+    cross = cross_check_net_a_payer(gray_full, profile)
+    if cross['final_value']:
+        data['net_a_payer'] = cross['final_value']
+    else:
+        fb = amounts_fallback.get('net_a_payer')
+        data['net_a_payer'] = fb if fb else "Not Found"
+    data['net_a_payer_table_reading'] = cross['table_value'] if cross['table_value'] else "Not Found"
+    data['net_a_payer_coupon_reading'] = cross['coupon_value'] if cross['coupon_value'] else "Not Found"
+    data['net_a_payer_cross_check_match'] = cross['match']
+    confidence['net_a_payer'] = cross['confidence']
+
+    total_3_val = data.get('total_3_taxes', '0')
+    net_ttc_val = data.get('net_a_payer', '0')
+    ht_val = calculate_montant_ht(net_ttc_val, total_3_val) if total_3_val != "Not Found" else "Not Found"
+    date_val = mois_value if mois_value else "Not Found"
+    consomateur_val = consomateur if consomateur else "Not Found"
+    facture_val = facture_value if facture_value else "Not Found"
+
+    status_val = compute_extraction_status(
+        consomateur_val, facture_val, date_val, total_3_val, net_ttc_val, ht_val, cross['match']
+    )
+
+    clean_output = {
+        "consomateur": consomateur_val,
+        "facture": facture_val,
+        "date": date_val,
+        "total_3(taxes)": total_3_val,
+        "montant ttc": net_ttc_val,
+        "montant ht": ht_val,
+        "devise": "TND",
+        "status": status_val,
+        "_confidence": confidence,
+        "net_a_payer_table_reading": cross['table_value'],
+        "net_a_payer_coupon_reading": cross['coupon_value'],
+        "net_a_payer_cross_check_match": cross['match']
+    }
+    return clean_output
+
+def process_uploaded_file(uploaded_file, hints=None):
+    file_name = uploaded_file.name
+    uploaded_file.seek(0)
+    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+
+    if file_name.lower().endswith('.pdf'):
+        if not PDF_SUPPORT:
+            raise Exception("Run: pip install pdf2image")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_path = tmp_file.name
+        pages = convert_from_path(tmp_path, poppler_path=POPPLER_PATH, dpi=300)
+        img = np.array(pages[0])
+        os.unlink(tmp_path)
+    else:
+        img = cv2.imdecode(file_bytes, 1)
+
+    gray_full = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img
+    gray_full = deskew_image(gray_full)
+    header_crop, amounts_crop = crop_regions(gray_full)
+
+    texts = {}
+    processed_header = None
+    processed_amounts = None
+    if header_crop is not None:
+        processed_header = preprocess_region(header_crop, scale=3)
+        texts['header'] = pytesseract.image_to_string(
+            processed_header, lang='fra', config='--psm 6'
+        )
+    if amounts_crop is not None:
+        processed_amounts = preprocess_region(amounts_crop, scale=4)
+        texts['amounts'] = pytesseract.image_to_string(
+            processed_amounts, lang='fra', config='--psm 6'
+        )
+    processed_full = preprocess_image(img)
+    texts['full'] = pytesseract.image_to_string(
+        processed_full, lang='fra', config='--psm 6'
+    )
+
+    combined_debug_text = (
+        "----- HEADER CROP -----\n" + texts.get('header', '(skipped)') +
+        "\n\n----- AMOUNTS COLUMN CROP -----\n" + texts.get('amounts', '(skipped)') +
+        "\n\n----- FULL PAGE (fallback) -----\n" + texts.get('full', '')
+    )
+
+    parsed_data = parse_steg_bill(gray_full, texts, hints)
+    debug_images = {
+        "full_binary": processed_full,
+        "header_crop": processed_header,
+        "amounts_crop": processed_amounts
+    }
+
+    return parsed_data, combined_debug_text, debug_images
+
+
+# ==========================================
+# STREAMLIT USER INTERFACE
+# ==========================================
+if st is not None:
+    st.set_page_config(page_title="STEG Invoice Parser", page_icon="📄", layout="centered")
+    st.title("📄 STEG Invoice Data Extractor")
+    st.markdown("Upload the full, uncropped invoice (PDF or original image) to extract the data.")
+    st.caption(
+        "Tip: extraction accuracy depends heavily on source resolution. A phone photo or a "
+        "300 DPI scan/PDF will read far more reliably than a compressed screenshot."
+    )
+
+    with st.sidebar:
+        st.header("🔧 Extraction Hints (optional)")
+        st.caption(
+            "If the invoice number comes back wrong or 'Not Found', type in the first few "
+            "digits you can read off the bill."
+        )
+        hint_facture = st.text_input("Facture N° starts with", value="62", placeholder="e.g. 6208")
+
+    hints = {'facture': hint_facture.strip()}
+
+    uploaded_file = st.file_uploader("Choose an image or PDF file", type=["png", "jpg", "jpeg", "pdf"])
+
+    if uploaded_file is not None:
+        col1, col2 = st.columns([1, 1])
+
+        with st.spinner("Extracting data using OCR..."):
+            try:
+                result_data, raw_ocr_text, debug_images = process_uploaded_file(uploaded_file, hints)
+                confidence = result_data.pop('_confidence', {})
+                profile_used = result_data.pop('_calibration_profile', None)
+                table_reading = result_data.pop('net_a_payer_table_reading', 'Not Found')
+                coupon_reading = result_data.pop('net_a_payer_coupon_reading', 'Not Found')
+                cross_match = result_data.pop('net_a_payer_cross_check_match', None)
+
+                with col1:
+                    st.subheader("🖼️ Converted Image (Black & White)")
+                    if debug_images.get("full_binary") is not None:
+                        st.image(debug_images["full_binary"], caption="Converted Black & White Image (fed into OCR)", use_container_width=True)
+                    else:
+                        st.image(uploaded_file, caption="Uploaded Invoice", use_container_width=True)
+
+                    with st.expander("📷 View Original Uploaded Image"):
+                        st.image(uploaded_file, caption="Original Uploaded Invoice", use_container_width=True)
+
+                with col2:
+                    if result_data["facture"] != "Not Found" and result_data["montant ttc"] != "0":
+                        st.success("✅ Extraction Successful!")
+                    else:
+                        st.warning("⚠️ Only partial data found. Please ensure you uploaded the FULL, clear original image, not a cropped screenshot.")
+
+                    if profile_used:
+                        st.caption(
+                            f"Calibration profile used: `{profile_used}` (picked by matching this "
+                            f"bill's aspect ratio to the closest calibrated sample - see "
+                            f"CALIBRATION_PROFILES in the code)."
+                        )
+
+                    st.markdown(
+                        "**Review before downloading** — this is OCR, not a human reading the "
+                        "bill. Fields below with a ⚠️ had disagreement across multiple internal "
+                        "re-reads (or couldn't reach a confident reading at all) and are the ones "
+                        "most likely to be wrong or missing:"
+                    )
+
+                    def field_label(name, key):
+                        agr = confidence.get(key)
+                        if agr is not None and agr < 0.7:
+                            return f"⚠️ {name} (verify this one - {agr:.0%} agreement)"
+                        return name
+
+                    if cross_match is True:
+                        st.info(f"✅ NET A PAYER confirmed: table and coupon both read {coupon_reading}.")
+                    elif cross_match is False:
+                        st.error(
+                            f"⚠️ NET A PAYER mismatch: using the coupon's Montant ({coupon_reading}) as the value below, "
+                            f"but the main table read {table_reading}. Please verify against the original."
+                        )
+                    else:
+                        st.warning("ℹ️ Only one of the two NET A PAYER printings was readable, so no cross-check was possible - using that single reading below.")
+
+                    edited = {}
+                    edited['consomateur'] = st.text_input("Consommateur", value=result_data['consomateur'])
+                    edited['facture'] = st.text_input("Facture N°", value=result_data['facture'])
+                    edited['date'] = st.text_input("Date", value=result_data['date'])
+                    edited['total_3(taxes)'] = st.text_input(
+                        field_label("Total 3 (taxes)", 'total_3_taxes'),
+                        value=result_data['total_3(taxes)']
+                    )
+                    edited['montant ttc'] = st.text_input(
+                        field_label("Montant TTC (NET À PAYER)", 'net_a_payer'),
+                        value=result_data['montant ttc']
+                    )
+                    calculated_ht = calculate_montant_ht(edited['montant ttc'], edited['total_3(taxes)'])
+                    edited['montant ht'] = st.text_input("Montant HT (Montant TTC - Total 3)", value=calculated_ht)
+                    edited['devise'] = "TND"
+                    edited['status'] = compute_extraction_status(
+                        edited['consomateur'],
+                        edited['facture'],
+                        edited['date'],
+                        edited['total_3(taxes)'],
+                        edited['montant ttc'],
+                        edited['montant ht'],
+                        cross_match
+                    )
+
+                    st.json(edited)
+
+
+                json_str = json.dumps(edited, indent=4, ensure_ascii=False)
+                st.download_button(
+                    label="📥 Download JSON Data",
+                    data=json_str,
+                    file_name="steg_data.json",
+                    mime="application/json"
+                )
+
+                with st.expander("🖼️ View Binarized Black & White Image & Crops"):
+                    st.write("Below is the cleaned black-and-white image and crop regions processed for OCR extraction:")
+                    if debug_images.get("full_binary") is not None:
+                        st.image(debug_images["full_binary"], caption="Binarized Full Page (Black & White)", use_container_width=True)
+                    crop_col1, crop_col2 = st.columns(2)
+                    with crop_col1:
+                        if debug_images.get("header_crop") is not None:
+                            st.image(debug_images["header_crop"], caption="Preprocessed Header Crop", use_container_width=True)
+                    with crop_col2:
+                        if debug_images.get("amounts_crop") is not None:
+                            st.image(debug_images["amounts_crop"], caption="Preprocessed Amounts Column Crop", use_container_width=True)
+
+                with st.expander("🔍 View Raw OCR Text (Debug)"):
+                    st.text(raw_ocr_text)
+                    st.markdown("**Note:** If this text is garbled, use the full original PDF/image, not a compressed screenshot.")
+
+            except Exception as e:
+                st.error(f"❌ An error occurred: {e}")

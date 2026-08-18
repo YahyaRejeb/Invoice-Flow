@@ -368,6 +368,39 @@
   overflow: hidden;
 }
 
+.document-file-preview {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--text-inverse);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45);
+}
+
+img.document-file-preview {
+  object-fit: contain;
+}
+
+.document-preview-fallback {
+  width: 100%;
+  min-height: 520px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  text-align: center;
+}
+
+.document-preview-fallback i {
+  font-size: 3rem;
+  color: var(--accent-cyan);
+}
+
 /* Photorealistic STEG Bill Document Styling */
 .mock-steg-bill-paper {
   width: 100%;

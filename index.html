@@ -24,11 +24,11 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Design System & Component Stylesheets -->
-  <link rel="stylesheet" href="front/css/variables.css">
-  <link rel="stylesheet" href="front/css/base.css">
-  <link rel="stylesheet" href="front/css/components.css">
-  <link rel="stylesheet" href="front/css/animations.css">
-  <link rel="stylesheet" href="front/css/dashboard.css">
+  <link rel="stylesheet" href="front/css/variables.css?v=20260818-address">
+  <link rel="stylesheet" href="front/css/base.css?v=20260818-address">
+  <link rel="stylesheet" href="front/css/components.css?v=20260818-address">
+  <link rel="stylesheet" href="front/css/animations.css?v=20260818-address">
+  <link rel="stylesheet" href="front/css/dashboard.css?v=20260818-address">
 </head>
 
 <body>
@@ -284,9 +284,6 @@
                 <i class="fa-solid fa-folder-open"></i> Browse PDF Document
               </button>
             </div>
-            <div id="guestLockBanner" class="guest-lock-banner" style="display: none;">
-              <i class="fa-solid fa-lock"></i> Sign in to unlock OCR extraction — guests can preview the workspace
-            </div>
           </div>
 
           <!-- OCR Processing Progress Card -->
@@ -310,55 +307,18 @@
             <div class="document-preview-card">
               <div class="doc-viewer-topbar">
                 <div class="doc-title-tag">
-                  <i class="fa-solid fa-file-pdf text-cyan"></i>
-                  <span>STEG_INVOICE_SOURCE.PDF</span>
+                  <i id="ocrFileIcon" class="fa-solid fa-file-pdf text-cyan"></i>
+                  <span id="ocrFileNameDisplay">STEG_INVOICE_SOURCE.PDF</span>
                 </div>
                 <span class="badge badge-validated" id="ocrConfidenceBadge">99.4% AI Accuracy</span>
               </div>
 
               <div class="document-viewer-body">
-                <!-- Glowing Scanning Laser Line Beam -->
-                <div class="scanner-laser-beam"></div>
-
-                <!-- Photorealistic STEG Bill Mockup -->
-                <div class="mock-steg-bill-paper">
-
-                  <!-- Target Bounding Box Overlays -->
-                  <div class="ocr-bounding-box" data-field="invoice_no"
-                    style="top: 10%; left: 42%; width: 53%; height: 12%;" title="Invoice Number Box"></div>
-                  <div class="ocr-bounding-box" data-field="invoice_date"
-                    style="top: 24%; left: 5%; width: 90%; height: 12%;" title="Billing Period Box"></div>
-                  <div class="ocr-bounding-box" data-field="amount_excl_tax"
-                    style="top: 42%; left: 5%; width: 90%; height: 15%;" title="Amounts Breakdown Box"></div>
-                  <div class="ocr-bounding-box" data-field="amount_incl_tax"
-                    style="top: 72%; left: 45%; width: 50%; height: 20%;" title="Total Amount Due Box"></div>
-
-                  <div class="steg-bill-header">
-                    <div class="steg-brand-logo">S.T.E.G.</div>
-                    <div class="steg-bill-title">FACTURE D'ÉLECTRICITÉ<br>ET DE GAZ</div>
-                  </div>
-
-                  <div class="steg-data-row">
-                    <span class="steg-label">RÉFÉRENCE FACTURE:</span>
-                    <span class="steg-value-highlight">2026-STEG-77491</span>
-                  </div>
-
-                  <div class="steg-data-block">
-                    <div class="steg-block-title">PÉRIODE DE CONSOMMATION</div>
-                    <div>01/05/2026 AU 01/07/2026 (2 MOIS)</div>
-                  </div>
-
-                  <div class="steg-data-block yellow-block">
-                    <div class="steg-block-title">RELEVÉ DE COMPTEUR ÉLECTRIQUE</div>
-                    <div>ANCIEN INDEX: 14250 | NOUVEAU: 15480</div>
-                    <div style="font-weight: 800; color: var(--accent-cyan);">CONSOMMATION: 1230 kWh</div>
-                  </div>
-
-                  <div class="steg-data-block blue-block">
-                    <div class="steg-block-title">MONTANT GLOBAL (TND)</div>
-                    <div style="font-size: 1.25rem; font-weight: 900; color: var(--text-main);">384.450 DT</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">DATE LIMITE: 25/08/2026</div>
-                  </div>
+                <img id="ocrDocumentImage" class="document-file-preview" alt="Uploaded invoice preview" style="display: none;">
+                <iframe id="ocrDocumentPdf" class="document-file-preview" title="Uploaded invoice PDF preview" style="display: none;"></iframe>
+                <div id="ocrDocumentFallback" class="document-preview-fallback">
+                  <i class="fa-solid fa-file-invoice"></i>
+                  <span>Invoice preview will appear here after upload.</span>
                 </div>
               </div>
             </div>
@@ -380,6 +340,11 @@
                     <label class="form-label">Supplier (Fournisseur)</label>
                     <input type="text" id="inputSupplier" class="form-control ocr-input-field" data-field="supplier"
                       value="STEG" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Address (Adresse)</label>
+                    <input type="text" id="inputAddress" class="form-control ocr-input-field" data-field="address">
                   </div>
 
                   <div class="form-group">
@@ -424,7 +389,7 @@
                 <div class="form-actions-row">
                   <button type="button" class="btn btn-secondary"
                     onclick="document.getElementById('splitVerificationContainer').style.display='none'; document.getElementById('factureDropzone').style.display='block';">Cancel</button>
-                  <button type="submit" class="btn btn-success" style="flex: 2;">
+                  <button type="submit" class="btn btn-success" id="btnConfirmOcrSave" style="flex: 2;">
                     <i class="fa-solid fa-circle-check"></i> Confirm & Save Validated Values
                   </button>
                 </div>
@@ -549,6 +514,10 @@
                 <input type="text" id="adminInvoiceSupplier" class="form-control" value="STEG">
               </div>
               <div class="form-group">
+                <label class="form-label">Address</label>
+                <input type="text" id="adminInvoiceAddress" class="form-control">
+              </div>
+              <div class="form-group">
                 <label class="form-label">Invoice No</label>
                 <input type="text" id="adminInvoiceNo" class="form-control">
               </div>
@@ -606,9 +575,8 @@
                   <tr>
                     <th>Invoice ID</th>
                     <th>Submitted By</th>
-                    <th>Invoice No</th>
+                    <th>Invoice / Address</th>
                     <th>Invoice Date</th>
-                    <th>Consumption</th>
                     <th>Status</th>
                     <th>Amount (TTC)</th>
                     <th style="text-align: right;">Actions</th>
@@ -775,6 +743,10 @@
               <input type="text" id="editSupplier" class="form-control" required>
             </div>
             <div class="form-group">
+              <label class="form-label">Address</label>
+              <input type="text" id="editAddress" class="form-control">
+            </div>
+            <div class="form-group">
               <label class="form-label">Invoice No</label>
               <input type="text" id="editInvoiceNo" class="form-control" required>
             </div>
@@ -921,12 +893,6 @@
           </button>
         </form>
 
-        <div class="auth-guest-action">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="Auth.continueAsGuest()">
-            <i class="fa-solid fa-user-secret"></i> Continue as Guest
-          </button>
-        </div>
-
         <p class="auth-hint">
           <i class="fa-solid fa-circle-info"></i> Demo accounts — password <span
             style="font-family: var(--font-mono);">demo123</span><br>
@@ -938,12 +904,11 @@
   </div>
 
   <!-- JavaScript Modules -->
-  <script src="front/js/ui-utils.js"></script>
-  <script src="front/js/ocr-simulator.js"></script>
-  <script src="front/js/auth.js"></script>
-  <script src="front/js/dashboard.js"></script>
-  <script src="front/js/admin.js"></script>
-  <script src="front/js/app.js"></script>
+  <script src="front/js/ui-utils.js?v=20260818-address"></script>
+  <script src="front/js/auth.js?v=20260818-address"></script>
+  <script src="front/js/dashboard.js?v=20260818-address"></script>
+  <script src="front/js/admin.js?v=20260818-address"></script>
+  <script src="front/js/app.js?v=20260818-address"></script>
 </body>
 
 </html>

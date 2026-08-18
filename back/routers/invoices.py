@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date as date_type, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
@@ -13,8 +13,13 @@ from schemas import (
     InvoiceOut,
     InvoiceUploadResponse,
     InvoiceValuesUpdate,
+    OcrResultOut,
 )
 from services import create_audit_log, save_upload_file
+
+import logging
+
+logger = logging.getLogger("steg.invoices")
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -48,13 +53,67 @@ def upload_invoice(
     db: DbDep,
     current_user: User = Depends(get_current_user),
 ):
-    """Save a facture PDF/image and create the invoice row (status='uploaded')."""
+    """Save a facture PDF/image, run OCR extraction, and create the invoice row."""
     file_path = save_upload_file(file)
     invoice = Invoice(user_id=current_user.user_id, file_path=file_path, uploaded_at=datetime.now())
+
+    # --- Run OCR on the saved file ---
+    ocr_result = None
+    ocr_data_out = None
+    try:
+        from ocr_service import run_ocr
+        from config import UPLOADS_DIR
+
+        # file_path is relative to UPLOADS_DIR.parent (e.g. "uploads/abc123.pdf")
+        abs_file_path = str(UPLOADS_DIR.parent / file_path)
+        ocr_result = run_ocr(abs_file_path)
+
+        # Auto-populate the invoice row with mapped OCR values
+        mapped = ocr_result.get("mapped", {})
+        if mapped.get("address"):
+            invoice.address = mapped["address"]
+        if mapped.get("invoice_no"):
+            invoice.invoice_no = mapped["invoice_no"]
+        if mapped.get("invoice_date"):
+            try:
+                invoice.invoice_date = date_type.fromisoformat(mapped["invoice_date"])
+            except (ValueError, TypeError):
+                pass
+        if mapped.get("amount_excl_tax") is not None:
+            invoice.amount_excl_tax = mapped["amount_excl_tax"]
+        if mapped.get("tva") is not None:
+            invoice.tva = mapped["tva"]
+        if mapped.get("amount_incl_tax") is not None:
+            invoice.amount_incl_tax = mapped["amount_incl_tax"]
+        if mapped.get("currency"):
+            invoice.currency = mapped["currency"]
+
+        # Build the OCR data for the API response
+        raw = ocr_result.get("ocr_raw", {})
+        ocr_data_out = OcrResultOut(
+            consomateur=raw.get("consomateur"),
+            address=raw.get("address"),
+            facture=raw.get("facture"),
+            date=raw.get("date"),
+            montant_ht=raw.get("montant_ht"),
+            total_3_taxes=raw.get("total_3_taxes"),
+            montant_ttc=raw.get("montant_ttc"),
+            devise=raw.get("devise", "TND"),
+            ocr_status=ocr_result.get("ocr_status"),
+            confidence=ocr_result.get("confidence"),
+        )
+        logger.info("OCR extraction succeeded for %s", file_path)
+    except Exception:
+        logger.exception("OCR extraction failed for %s — invoice saved without OCR data", file_path)
+
     db.add(invoice)
     db.commit()
     db.refresh(invoice)
-    return InvoiceUploadResponse(invoice=_invoice_out(invoice))
+    return InvoiceUploadResponse(
+        invoice=_invoice_out(invoice),
+        ocr_data=ocr_data_out,
+        message="Upload successful. OCR extraction complete." if ocr_data_out else "Upload successful. OCR extraction failed — please fill in values manually.",
+    )
 
 
 @router.get("/mine", response_model=InvoiceListResponse)
@@ -95,6 +154,7 @@ def update_invoice_values(
     invoice = _own_invoice_or_404(db, invoice_id, current_user)
 
     invoice.supplier = payload.supplier
+    invoice.address = payload.address
     invoice.invoice_no = payload.invoice_no
     invoice.invoice_date = payload.invoice_date
     invoice.amount_excl_tax = payload.amount_excl_tax
@@ -123,7 +183,14 @@ def update_invoice_values(
             new_value="pending",
         )
     else:
-        invoice.status = "validated_by_user"
+        demand = Demand(
+            invoice_id=invoice.invoice_id,
+            user_id=current_user.user_id,
+            status="pending",
+            submitted_at=datetime.now(),
+        )
+        invoice.status = "pending"
+        db.add(demand)
 
     db.commit()
     db.refresh(invoice)
@@ -141,4 +208,3 @@ def delete_my_invoice(
     db.delete(invoice)
     db.commit()
     return None
-

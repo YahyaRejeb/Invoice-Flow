@@ -1,0 +1,77 @@
+@startuml
+
+left to right direction
+
+skinparam actorStyle awesome
+skinparam shadowing false
+skinparam nodesep 10
+skinparam ranksep 15
+
+actor Guest as G
+actor User as U
+actor Administrator as A
+
+' Actor generalization
+U --|> G
+A --|> G
+
+' Keep actors aligned
+G -[hidden]right-> U
+U -[hidden]right-> A
+
+
+rectangle "Invoice Management System" {
+
+    ' Guest
+    usecase "Sign Up" as UC1
+    usecase "Log In" as UC2
+
+    ' User / Common
+    usecase "Upload PDF Invoice" as UC3
+    usecase "Extract Invoice Data" as UC4
+    usecase "Validate Extracted Data" as UC5
+    usecase "Modify Demand" as UC6
+    usecase "Delete Demand" as UC7
+    usecase "View My Charts" as UC8
+    usecase "Change Profile Info" as UC9
+
+    ' Administrator
+    usecase "View Overall Charts & Total Values" as UC16
+    usecase "Approve Demands" as UC10
+    usecase "Accept User Accounts" as UC11
+    usecase "Modify User Accounts" as UC12
+    usecase "Delete User Accounts" as UC13
+    usecase "View All User Charts" as UC14
+    usecase "View Total Charts & Averages" as UC15
+}
+
+
+' Guest
+G --> UC1
+G --> UC2
+
+' User
+U --> UC3
+U --> UC5
+U --> UC6
+U --> UC7
+U --> UC8
+U --> UC9
+
+' Administrator
+A --> UC10
+A --> UC11
+A --> UC12
+A --> UC13
+A --> UC14
+A --> UC15
+A --> UC16
+
+' Common use cases
+A --> UC6
+A --> UC7
+
+' Include
+UC3 ..> UC4 : <<include>>
+
+@enduml

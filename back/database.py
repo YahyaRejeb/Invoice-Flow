@@ -22,6 +22,8 @@ MIGRATIONS = (
     "ALTER TABLE [Invoices] ADD [kwh_consumed] INT NULL;",
     "IF COL_LENGTH('dbo.Invoices', 'due_date') IS NULL "
     "ALTER TABLE [Invoices] ADD [due_date] DATE NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'address') IS NULL "
+    "ALTER TABLE [Invoices] ADD [address] NVARCHAR(255) NULL;",
     "IF COL_LENGTH('dbo.Users', 'account_status') IS NULL "
     "ALTER TABLE [Users] ADD [account_status] NVARCHAR(30) NOT NULL CONSTRAINT [DF_Users_account_status] DEFAULT 'pending';",
     # Backfill: map legacy Users.status to new account_status.

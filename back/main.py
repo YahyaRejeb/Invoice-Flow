@@ -40,8 +40,8 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="STEG Facture Processing API",
-    description="FastAPI backend for the STEG facture OCR, validation and demand workflow.",
+    title="InvoiceFlow API",
+    description="FastAPI backend for InvoiceFlow invoice processing, validation and demand workflow.",
     version="1.0.0",
     lifespan=lifespan,
 )

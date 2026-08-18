@@ -5,18 +5,29 @@
 const App = {
   activeView: 'dashboard',
   currentExtractedData: null,
+  currentPreviewUrl: null,
 
   init() {
     UI.initTheme();
-    Auth.init();
-    Dashboard.init();
-    Admin.init();
 
     this.bindNavigation();
     this.bindDropzone();
     this.bindVerificationForm();
 
-    this.switchView(Auth.isGuest() ? 'upload' : 'dashboard');
+    Dashboard.init();
+    Admin.init();
+    Auth.init().catch((err) => {
+      console.error('Auth initialization failed:', err);
+      UI.showToast('Session restore failed. Please sign in again.', 'warning');
+      Auth.openAuth();
+    });
+
+    if (Auth.isAuthenticated()) {
+      this.switchView(Auth.currentUser?.role === 'admin' ? 'admin' : 'dashboard');
+    } else {
+      this.showView('dashboard');
+      Auth.openAuth();
+    }
   },
 
   bindNavigation() {
@@ -32,9 +43,8 @@ const App = {
   },
 
   switchView(viewId) {
-    // Guests have no access to any feature view except the upload preview
-    if (Auth.isGuest() && viewId !== 'upload') {
-      UI.showToast('Authentication required — sign in to access this feature.', 'warning');
+    if (!Auth.isAuthenticated()) {
+      UI.showToast('Authentication required — sign in to access InvoiceFlow.', 'warning');
       Auth.openAuth();
       return;
     }
@@ -46,8 +56,33 @@ const App = {
       return;
     }
 
-    this.activeView = viewId;
+    if (Auth.currentUser?.role !== 'admin' && viewId === 'demands') {
+      viewId = 'ocr-admin';
+    }
 
+    this.activeView = viewId;
+    this.showView(viewId);
+
+    if (viewId === 'dashboard') {
+      Dashboard.renderStats();
+      Dashboard.renderFacturesTable();
+      Dashboard.initCharts();
+    } else if (viewId === 'admin') {
+      Admin.renderQueue();
+      Admin.renderAuditLogs();
+    } else if (viewId === 'ocr-admin' && Auth.isAuthenticated()) {
+      Admin.fetchAdminInvoices();
+    } else if (viewId === 'user-admin' && Auth.currentUser?.role === 'admin') {
+      Admin.fetchAdminUsers();
+    } else if (viewId === 'demands') {
+      (async () => {
+        if (window.Dashboard) await window.Dashboard.fetchDataFromBackend();
+        await this.renderUserDemandsTable();
+      })();
+    }
+  },
+
+  showView(viewId) {
     document.querySelectorAll('.nav-link').forEach(link => {
       if (link.getAttribute('data-view') === viewId) {
         link.classList.add('active');
@@ -70,29 +105,11 @@ const App = {
       upload: 'Upload & Verification Workspace',
       demands: 'My Demands',
       admin: 'Admin Review Queue',
-      'ocr-admin': 'OCR Management',
+      'ocr-admin': Auth.currentUser?.role === 'admin' ? 'OCR Management' : 'My Invoices & Demands',
       'user-admin': 'User Administration',
       analytics: 'Power BI Analytics'
     };
     if (pageTitle) pageTitle.textContent = titles[viewId] || 'Overview';
-
-    if (viewId === 'dashboard') {
-      Dashboard.renderStats();
-      Dashboard.renderFacturesTable();
-      Dashboard.initCharts();
-    } else if (viewId === 'admin') {
-      Admin.renderQueue();
-      Admin.renderAuditLogs();
-    } else if (viewId === 'ocr-admin' && Auth.isAuthenticated()) {
-      Admin.fetchAdminInvoices();
-    } else if (viewId === 'user-admin' && Auth.currentUser?.role === 'admin') {
-      Admin.fetchAdminUsers();
-    } else if (viewId === 'demands') {
-      (async () => {
-        if (window.Dashboard) await window.Dashboard.fetchDataFromBackend();
-        await this.renderUserDemandsTable();
-      })();
-    }
   },
 
   async renderUserDemandsTable() {
@@ -142,7 +159,7 @@ const App = {
   },
 
   onRoleChanged(newRole) {
-    const adminViews = ['admin', 'ocr-admin', 'user-admin'];
+    const adminViews = ['admin', 'user-admin'];
     if (newRole === 'admin' && !adminViews.includes(this.activeView)) {
       this.switchView('admin');
     } else if (newRole === 'user' && adminViews.includes(this.activeView)) {
@@ -157,7 +174,7 @@ const App = {
     if (!dropzone || !fileInput) return;
 
     dropzone.addEventListener('click', () => {
-      if (Auth.isGuest()) {
+      if (!Auth.isAuthenticated()) {
         UI.showToast('Authentication required — sign in or create an account to process factures.', 'warning');
         Auth.openAuth();
         return;
@@ -188,9 +205,8 @@ const App = {
   },
 
   onAuthStateChanged() {
-    // Guests are confined to the upload preview
-    if (Auth.isGuest()) {
-      this.switchView('upload');
+    if (!Auth.isAuthenticated()) {
+      Auth.openAuth();
       return;
     }
     // Authenticated users land on the overview dashboard
@@ -204,11 +220,46 @@ const App = {
   },
 
   async processFile(file) {
-    // Guests can preview the workspace but must sign in before uploading.
-    if (Auth.isGuest()) {
+    if (!Auth.isAuthenticated()) {
       UI.showToast('Authentication required — sign in or create an account to process factures.', 'warning');
       Auth.openAuth();
       return;
+    }
+
+    // Update document viewer topbar name and icon
+    const nameEl = document.getElementById('ocrFileNameDisplay');
+    const iconEl = document.getElementById('ocrFileIcon');
+    const imgEl = document.getElementById('ocrDocumentImage');
+    const pdfEl = document.getElementById('ocrDocumentPdf');
+    const fallbackEl = document.getElementById('ocrDocumentFallback');
+
+    if (this.currentPreviewUrl) {
+      URL.revokeObjectURL(this.currentPreviewUrl);
+    }
+    this.currentPreviewUrl = URL.createObjectURL(file);
+
+    if (nameEl) nameEl.textContent = file.name;
+    
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (iconEl) {
+      iconEl.className = isImage ? 'fa-solid fa-file-image text-cyan' : 'fa-solid fa-file-pdf text-cyan';
+    }
+
+    if (imgEl) {
+      imgEl.src = isImage ? this.currentPreviewUrl : '';
+      imgEl.style.display = isImage ? 'block' : 'none';
+    }
+    if (pdfEl) {
+      pdfEl.src = isPdf ? this.currentPreviewUrl : '';
+      pdfEl.style.display = isPdf ? 'block' : 'none';
+    }
+    if (fallbackEl) {
+      fallbackEl.style.display = !isImage && !isPdf ? 'flex' : 'none';
+    }
+
+    if (isImage && imgEl) {
+      imgEl.style.display = 'block';
     }
 
     const dropzone = document.getElementById('factureDropzone');
@@ -219,86 +270,195 @@ const App = {
 
     dropzone.style.display = 'none';
     progressCard.style.display = 'block';
+    if (progressStatus) progressStatus.textContent = 'Uploading document to server...';
+    if (progressBar) progressBar.style.width = '20%';
     if (splitContainer) splitContainer.style.display = 'none';
 
-    // Upload file to backend /invoices/upload to store in SQL Server StegDB
+    // Upload file directly to backend /invoices/upload (OCR runs server-side)
     let serverInvoiceId = null;
+    let uploadSuccess = false;
+    let ocrData = null;
+    let uploadData = null;
     try {
+      if (progressStatus) progressStatus.textContent = 'Uploading & running OCR extraction engine...';
+      if (progressBar) progressBar.style.width = '40%';
+
       const formData = new FormData();
       formData.append('file', file);
       const uploadRes = await Auth.apiFetch('/invoices/upload', {
         method: 'POST',
         body: formData
       });
+
+      if (progressBar) progressBar.style.width = '80%';
+      if (progressStatus) progressStatus.textContent = 'Processing OCR results...';
+
       if (uploadRes.ok) {
-        const uploadData = await uploadRes.json();
+        uploadData = await uploadRes.json();
         serverInvoiceId = uploadData.invoice?.invoice_id;
+        ocrData = uploadData.ocr_data || null;
+        uploadSuccess = true;
+        await Dashboard.fetchDataFromBackend();
+      } else {
+        const errorData = await uploadRes.json().catch(() => ({}));
+        UI.showToast(errorData.detail || 'Failed to upload document', 'danger');
       }
     } catch (e) {
       console.warn('Backend upload notice:', e);
+      UI.showToast('Could not connect to backend server', 'warning');
     }
 
-    await OCRSimulator.runExtraction(
-      file,
-      (statusText, percent) => {
-        if (progressStatus) progressStatus.textContent = statusText;
-        if (progressBar) progressBar.style.width = `${percent}%`;
-      },
-      (data) => {
-        if (serverInvoiceId) data.id = serverInvoiceId;
-        this.currentExtractedData = data;
-        progressCard.style.display = 'none';
-        if (splitContainer) {
-          splitContainer.style.display = 'grid';
-          this.populateVerificationForm(data);
-        }
-        UI.showToast(`OCR parsed values for ${data.invoice_no}`, 'success');
+    if (progressBar) progressBar.style.width = '100%';
+
+    // Build data from OCR results or empty defaults
+    const data = {
+      id: serverInvoiceId || ("FACT-" + Math.floor(1000 + Math.random() * 9000)),
+      supplier: 'STEG',
+      address: '',
+      invoice_no: '',
+      invoice_date: '',
+      amount_excl_tax: '',
+      tva: '',
+      amount_incl_tax: ''
+    };
+
+    // Auto-populate from OCR data if available
+    if (ocrData) {
+      try {
+        data.supplier = ocrData.consomateur && ocrData.consomateur !== 'Not Found' ? ocrData.consomateur : 'STEG';
+        data.address = ocrData.address && ocrData.address !== 'Not Found' ? ocrData.address : '';
+        data.invoice_no = ocrData.facture && ocrData.facture !== 'Not Found' ? ocrData.facture : '';
+
+        data.invoice_date = this.normalizeOcrDate(ocrData.date) || uploadData?.invoice?.invoice_date || '';
+
+        // OCR engines occasionally return a number instead of text.
+        const parseOcrNum = (val) => {
+          if (val === null || val === undefined || val === '' || val === 'Not Found' || val === '0') return '';
+          return parseFloat(String(val).replace(',', '.').replace(/\s/g, '')) || '';
+        };
+        data.amount_excl_tax = parseOcrNum(ocrData.montant_ht);
+        data.tva = parseOcrNum(ocrData.total_3_taxes);
+        data.amount_incl_tax = parseOcrNum(ocrData.montant_ttc);
+      } catch (e) {
+        console.warn('OCR values could not be prepared for review:', e);
+        UI.showToast('Document uploaded. Please review and complete the values manually.', 'warning');
       }
-    );
+    }
+
+    this.currentExtractedData = data;
+
+    setTimeout(() => {
+      progressCard.style.display = 'none';
+      if (splitContainer) {
+        splitContainer.style.display = 'grid';
+        this.populateVerificationForm(data);
+
+        // Update OCR confidence badge
+        const confidenceEl = document.getElementById('ocrConfidenceBadge');
+        if (confidenceEl && ocrData) {
+          const statusMap = {
+            'validate': { text: '✅ OCR Verified', cls: 'badge-validated' },
+            'review': { text: '⚠️ Needs Review', cls: 'badge-pending' },
+            'invalid': { text: '❌ Low Confidence', cls: 'badge-rejected' }
+          };
+          const statusInfo = statusMap[ocrData.ocr_status] || { text: 'Document Uploaded', cls: 'badge-uploaded' };
+          confidenceEl.textContent = statusInfo.text;
+          confidenceEl.className = `badge ${statusInfo.cls}`;
+        } else if (confidenceEl) {
+          confidenceEl.textContent = 'Document Uploaded';
+          confidenceEl.className = 'badge badge-uploaded';
+        }
+      }
+
+      if (uploadSuccess && ocrData) {
+        UI.showToast('OCR extraction complete — verify the extracted values below.', 'success');
+      } else if (uploadSuccess) {
+        UI.showToast('Document uploaded. OCR extraction unavailable — please fill in values manually.', 'warning');
+      }
+    }, 400);
   },
 
-  populateVerificationForm(data) {
+  normalizeOcrDate(rawDate) {
+    if (!rawDate || rawDate === 'Not Found') return '';
+    const value = String(rawDate).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+    let match = value.match(/^(\d{1,2})\/(\d{4})$/);
+    if (match) {
+      const [, month, year] = match;
+      return `${year}-${month.padStart(2, '0')}-01`;
+    }
+
+    match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+      const [, day, month, year] = match;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    return '';
+  },
+
+  resetUploadWorkspace() {
+    this.currentExtractedData = null;
+    document.getElementById('splitVerificationContainer').style.display = 'none';
+    document.getElementById('ocrProgressCard').style.display = 'none';
+    document.getElementById('factureDropzone').style.display = 'block';
+    const fileInput = document.getElementById('factureFileInput');
+    if (fileInput) fileInput.value = '';
+  },
+
+  populateVerificationForm(data = {}) {
     document.getElementById('inputSupplier').value = data.supplier || 'STEG';
-    document.getElementById('inputInvoiceNo').value = data.invoice_no;
-    document.getElementById('inputInvoiceDate').value = data.invoice_date;
-    document.getElementById('inputAmountExclTax').value = data.amount_excl_tax;
-    document.getElementById('inputTva').value = data.tva;
-    document.getElementById('inputAmountInclTax').value = data.amount_incl_tax;
+    document.getElementById('inputAddress').value = data.address || '';
+    document.getElementById('inputInvoiceNo').value = data.invoice_no || '';
+    document.getElementById('inputInvoiceDate').value = data.invoice_date || '';
+    document.getElementById('inputAmountExclTax').value = data.amount_excl_tax || '';
+    document.getElementById('inputTva').value = data.tva || '';
+    document.getElementById('inputAmountInclTax').value = data.amount_incl_tax || '';
 
     const confidenceEl = document.getElementById('ocrConfidenceBadge');
     if (confidenceEl) {
-      confidenceEl.textContent = `${data.confidence}% Accuracy (${data.is_digital ? 'Text Layer' : 'Tesseract Scan'})`;
+      confidenceEl.textContent = 'Document Uploaded';
     }
-
-    document.querySelectorAll('.ocr-input-field').forEach(input => {
-      input.addEventListener('focus', () => {
-        const fieldKey = input.dataset.field;
-        OCRSimulator.highlightBox(fieldKey);
-      });
-    });
   },
 
   bindVerificationForm() {
     const form = document.getElementById('ocrVerificationForm');
     if (!form) return;
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!this.currentExtractedData) return;
+      const submitBtn = document.getElementById('btnConfirmOcrSave');
+      const originalSubmitHtml = submitBtn?.innerHTML;
 
       this.currentExtractedData.supplier = document.getElementById('inputSupplier').value;
+      this.currentExtractedData.address = document.getElementById('inputAddress').value.trim() || null;
       this.currentExtractedData.invoice_no = document.getElementById('inputInvoiceNo').value;
-      this.currentExtractedData.invoice_date = document.getElementById('inputInvoiceDate').value;
+      
+      let dateVal = document.getElementById('inputInvoiceDate').value;
+      if (dateVal && dateVal.length === 7) {
+        dateVal += '-01';
+      }
+      this.currentExtractedData.invoice_date = dateVal;
+      
       this.currentExtractedData.amount_excl_tax = parseFloat(document.getElementById('inputAmountExclTax').value) || 0;
       this.currentExtractedData.tva = parseFloat(document.getElementById('inputTva').value) || 0;
       this.currentExtractedData.amount_incl_tax = parseFloat(document.getElementById('inputAmountInclTax').value) || 0;
 
-      Dashboard.saveUserValidation(this.currentExtractedData);
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+      }
+      const saved = await Dashboard.saveUserValidation(this.currentExtractedData);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalSubmitHtml;
+      }
+      if (!saved) return;
 
-      document.getElementById('splitVerificationContainer').style.display = 'none';
-      document.getElementById('factureDropzone').style.display = 'block';
-
-      this.switchView('dashboard');
+      await Dashboard.fetchDataFromBackend();
+      this.resetUploadWorkspace();
     });
   }
 };
@@ -307,4 +467,3 @@ document.addEventListener('DOMContentLoaded', () => {
   window.App = App;
   App.init();
 });
-

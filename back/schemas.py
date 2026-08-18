@@ -81,6 +81,7 @@ class AdminInvoiceCreate(BaseModel):
     user_id: int = Field(gt=0)
     file_path: str = Field(min_length=1, max_length=500)
     supplier: str = Field(default="STEG", max_length=100)
+    address: str | None = Field(default=None, max_length=255)
     invoice_no: str | None = Field(default=None, max_length=50)
     invoice_date: date | None = None
     amount_excl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
@@ -89,13 +90,14 @@ class AdminInvoiceCreate(BaseModel):
     currency: str = Field(default="TND", max_length=10)
     kwh_consumed: int | None = Field(default=None, ge=0)
     due_date: date | None = None
-    status: str = Field(default="uploaded", pattern="^(uploaded|validated_by_user|pending|validated|rejected)$")
+    status: str = Field(default="uploaded", pattern="^(uploaded|pending|approved|validated|rejected)$")
 
 
 class AdminInvoiceUpdate(BaseModel):
     user_id: int | None = Field(default=None, gt=0)
     file_path: str | None = Field(default=None, min_length=1, max_length=500)
     supplier: str | None = Field(default=None, max_length=100)
+    address: str | None = Field(default=None, max_length=255)
     invoice_no: str | None = Field(default=None, max_length=50)
     invoice_date: date | None = None
     amount_excl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
@@ -104,7 +106,7 @@ class AdminInvoiceUpdate(BaseModel):
     currency: str | None = Field(default=None, max_length=10)
     kwh_consumed: int | None = Field(default=None, ge=0)
     due_date: date | None = None
-    status: str | None = Field(default=None, pattern="^(uploaded|validated_by_user|pending|validated|rejected)$")
+    status: str | None = Field(default=None, pattern="^(uploaded|pending|approved|validated|rejected)$")
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +117,7 @@ class InvoiceValuesUpdate(BaseModel):
     """Validated fields the user confirms after reviewing the OCR output."""
 
     supplier: str = Field(default="STEG", max_length=100)
+    address: str | None = Field(default=None, max_length=255)
     invoice_no: str | None = Field(default=None, max_length=50)
     invoice_date: date | None = None
     amount_excl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
@@ -131,7 +134,9 @@ class InvoiceOut(BaseModel):
     invoice_id: int
     user_id: int
     file_name: str | None = None
+    file_path: str | None = None
     supplier: str | None = None
+    address: str | None = None
     invoice_no: str | None = None
     invoice_date: date | None = None
     amount_excl_tax: Decimal | None = None
@@ -148,9 +153,25 @@ class InvoiceOut(BaseModel):
     user_email: str | None = None
 
 
+class OcrResultOut(BaseModel):
+    """Raw OCR extraction results returned alongside the uploaded invoice."""
+
+    consomateur: str | None = None
+    address: str | None = None
+    facture: str | None = None
+    date: str | None = None
+    montant_ht: str | None = None
+    total_3_taxes: str | None = None
+    montant_ttc: str | None = None
+    devise: str = "TND"
+    ocr_status: str | None = None
+    confidence: dict | None = None
+
+
 class InvoiceUploadResponse(BaseModel):
     invoice: InvoiceOut
-    message: str = "Upload successful. Awaiting value validation."
+    ocr_data: OcrResultOut | None = None
+    message: str = "Upload successful."
 
 
 class InvoiceListResponse(BaseModel):
@@ -201,7 +222,7 @@ class AdminDemandOut(MyDemandOut):
 
 
 class DemandDecision(BaseModel):
-    status: str = Field(pattern="^(validated|rejected)$")
+    status: str = Field(pattern="^(approved|validated|rejected)$")
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +260,7 @@ __all__ = [
     "RegisterRequest", "LoginRequest", "UserOut", "AuthResponse", "UpdateMeRequest",
     "AdminUserCreate", "AdminUserUpdate", "AdminUserOut",
     "AdminInvoiceCreate", "AdminInvoiceUpdate",
-    "InvoiceValuesUpdate", "InvoiceOut", "InvoiceUploadResponse", "InvoiceListResponse",
+    "InvoiceValuesUpdate", "InvoiceOut", "OcrResultOut", "InvoiceUploadResponse", "InvoiceListResponse",
     "DemandCreate", "DemandOut", "MyDemandOut", "AdminDemandOut", "DemandDecision",
     "AuditOut",
     "DashboardStats",

@@ -35,7 +35,7 @@ def submit_demand(
     db: DbDep,
     current_user: User = Depends(get_current_user),
 ):
-    """Submit or re-submit a formal demand for a user-validated invoice."""
+    """Submit or re-submit an invoice demand for admin review."""
     invoice = db.scalar(
         select(Invoice)
         .options(selectinload(Invoice.demand))
@@ -68,12 +68,6 @@ def submit_demand(
         db.commit()
         db.refresh(demand)
         return demand
-
-    if invoice.status != "validated_by_user":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invoice must be user-validated before a demand can be submitted",
-        )
 
     demand = Demand(
         invoice_id=invoice.invoice_id,
@@ -116,9 +110,8 @@ def delete_my_demand(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demand not found")
 
     if demand.invoice:
-        demand.invoice.status = "validated_by_user"
+        demand.invoice.status = "uploaded"
 
     db.delete(demand)
     db.commit()
     return None
-

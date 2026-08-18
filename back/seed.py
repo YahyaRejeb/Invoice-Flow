@@ -37,8 +37,8 @@ SAMPLE_INVOICES = [
         "amount_incl_tax": 345.800,
         "kwh_consumed": 1150,
         "due_date": date(2026, 6, 20),
-        "status": "validated",
-        "demand_status": "validated",
+        "status": "approved",
+        "demand_status": "approved",
         "demand_reviewed": True,
     },
     {
@@ -49,8 +49,8 @@ SAMPLE_INVOICES = [
         "amount_incl_tax": 298.600,
         "kwh_consumed": 1050,
         "due_date": date(2026, 4, 15),
-        "status": "validated",
-        "demand_status": "validated",
+        "status": "approved",
+        "demand_status": "approved",
         "demand_reviewed": True,
     },
 ]
@@ -122,11 +122,11 @@ def seed(db: Session) -> None:
             db.add(
                 AuditLog(
                     demand_id=demand.demand_id,
-                    action="VALIDATED_DEMAND",
+                    action="APPROVED_DEMAND",
                     actor_id=admin_user.user_id,
                     field_changed="status",
                     old_value="pending",
-                    new_value="validated",
+                    new_value="approved",
                     timestamp=datetime(2026, month, 6, 11, 0),
                 )
             )

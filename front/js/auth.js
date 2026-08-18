@@ -17,10 +17,10 @@ const Auth = {
     await this.restoreSession();
     this.updateRoleUI();
 
-    if (window.App) {
-      window.App.onAuthStateChanged();
-    } else if (this.isGuest()) {
+    if (!this.isAuthenticated()) {
       this.openAuth();
+    } else if (window.App) {
+      window.App.onAuthStateChanged();
     }
   },
 
@@ -109,6 +109,9 @@ const Auth = {
   },
 
   closeAuth() {
+    if (!this.isAuthenticated()) {
+      return;
+    }
     const modal = document.getElementById('authModal');
     if (modal) {
       modal.classList.remove('active');
@@ -362,17 +365,15 @@ const Auth = {
   },
 
   continueAsGuest() {
-    this.clearSession();
-    this.updateRoleUI();
-    this.closeAuth();
-    UI.showToast('Continuing as guest.', 'info');
-    if (window.App) window.App.onAuthStateChanged();
+    this.openAuth();
   },
 
   logout() {
+    this.closeProfile();
     this.clearSession();
     this.resetRoleSwitcher();
     this.updateRoleUI();
+    this.openAuth();
 
     UI.showToast('Logged out successfully.', 'info');
     if (window.App) window.App.onAuthStateChanged();
@@ -385,7 +386,11 @@ const Auth = {
   },
 
   openProfile() {
-    if (this.isGuest()) return;
+    if (!this.isAuthenticated()) {
+      this.closeProfile();
+      this.openAuth();
+      return;
+    }
     this.populateProfileModal();
     UI.openModal('profileModal');
   },
@@ -405,19 +410,14 @@ const Auth = {
     const profileCreatedAt = document.getElementById('profileCreatedAt');
     const profileRoleValue = document.getElementById('profileRoleValue');
     const profileFullNameInput = document.getElementById('profileFullNameInput');
+    const profileEditForm = document.getElementById('profileEditForm');
 
-    if (this.isGuest()) {
-      if (profileAvatar) profileAvatar.textContent = 'GU';
-      if (profileName) profileName.textContent = 'Guest User';
-      if (profileRole) profileRole.textContent = 'VISITOR';
-      if (profileFullName) profileFullName.textContent = '-';
-      if (profileEmail) profileEmail.textContent = '-';
-      if (profileCreatedAt) profileCreatedAt.textContent = '-';
-      if (profileRoleValue) profileRoleValue.textContent = '-';
-      if (profileFullNameInput) profileFullNameInput.value = '';
+    if (!this.isAuthenticated()) {
+      if (profileEditForm) profileEditForm.style.display = 'none';
       return;
     }
 
+    if (profileEditForm) profileEditForm.style.display = 'block';
     if (profileAvatar) profileAvatar.textContent = initials(this.currentUser.name);
     if (profileName) profileName.textContent = this.currentUser.name || 'User';
     if (profileRole) profileRole.textContent = (this.currentUser.role || 'user').toUpperCase();
@@ -429,18 +429,18 @@ const Auth = {
   },
 
   /* ------------------------------------------------------------------------
-     UI State Sync (Guest vs Authenticated)
+     UI State Sync (Authenticated Users)
      ------------------------------------------------------------------------ */
   updateRoleUI() {
     const initials = (name) => name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'US';
 
     // Topbar: login button vs session pill
     const btnLogin = document.getElementById('btnAuthLogin');
-    if (btnLogin) btnLogin.style.display = this.isGuest() ? 'inline-flex' : 'none';
+    if (btnLogin) btnLogin.style.display = !this.isAuthenticated() ? 'inline-flex' : 'none';
 
     const sessionPill = document.getElementById('sessionPill');
     if (sessionPill) {
-      sessionPill.style.display = this.isGuest() ? 'none' : 'flex';
+      sessionPill.style.display = !this.isAuthenticated() ? 'none' : 'flex';
       const sessionName = document.getElementById('sessionName');
       const sessionAvatar = document.getElementById('sessionAvatar');
       if (this.currentUser) {
@@ -452,32 +452,45 @@ const Auth = {
     // Hero greeting on the overview dashboard
     const heroGreeting = document.getElementById('heroUserGreeting');
     if (heroGreeting) {
-      heroGreeting.textContent = this.isGuest() ? 'Guest' : (this.currentUser?.name || 'User');
+      heroGreeting.textContent = this.currentUser?.name || 'User';
     }
 
     this.populateProfileModal();
 
-    // Sidebar navigation visibility (guests only keep the upload preview)
+    // Sidebar navigation visibility
     document.querySelectorAll('.nav-link').forEach(link => {
       const view = link.dataset.view;
       let show = false;
-      if (this.isGuest()) {
-        show = view === 'upload';
+      if (!this.isAuthenticated()) {
+        show = false;
+      } else if (this.currentUser.role === 'admin') {
+        show = view === 'dashboard' || view === 'analytics' || view === 'admin' || view === 'ocr-admin' || view === 'user-admin';
       } else {
-        if (this.currentUser.role === 'admin') {
-          show = view === 'dashboard' || view === 'analytics' || view === 'admin' || view === 'ocr-admin' || view === 'user-admin';
-        } else {
-          show = view === 'dashboard' || view === 'upload' || view === 'analytics' || view === 'demands' || view === 'ocr-admin';
-        }
+        show = view === 'dashboard' || view === 'upload' || view === 'analytics' || view === 'ocr-admin';
       }
       link.style.display = show ? 'flex' : 'none';
     });
 
-    // Guest lock banner on the upload dropzone
-    const lockBanner = document.getElementById('guestLockBanner');
-    if (lockBanner) lockBanner.style.display = this.isGuest() ? 'inline-flex' : 'none';
+    const isAdmin = this.currentUser?.role === 'admin';
+    const ocrNavLabel = document.getElementById('ocrNavLabel');
+    if (ocrNavLabel) ocrNavLabel.textContent = isAdmin ? 'OCR Management' : 'My Invoices & Demands';
+
+    const ocrTitle = document.getElementById('ocrManagementTitle');
+    if (ocrTitle) ocrTitle.childNodes[ocrTitle.childNodes.length - 1].textContent = isAdmin ? ' OCR File Management' : ' My Invoices & Demands';
+
+    const ocrSubtitle = document.getElementById('ocrManagementSubtitle');
+    if (ocrSubtitle) ocrSubtitle.textContent = isAdmin
+      ? 'Review extracted invoice data, open the scanned file, and manage the OCR record.'
+      : 'Review your scanned invoices, correct OCR values, submit demands, and track their status.';
+
+    document.querySelectorAll('.admin-invoice-only').forEach(el => {
+      el.style.display = isAdmin ? '' : 'none';
+    });
+
+    if (!this.isAuthenticated()) {
+      this.openAuth();
+    }
   }
 };
 
 window.Auth = Auth;
-

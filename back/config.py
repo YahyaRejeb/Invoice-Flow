@@ -10,7 +10,8 @@ from urllib.parse import quote_plus
 # Layout: back/ is the backend root, the frontend lives one level above.
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BACKEND_DIR.parent
-UPLOADS_DIR = BACKEND_DIR / "uploads"
+# Store all scanned documents in one folder at the project root.
+UPLOADS_DIR = PROJECT_DIR / "uploads"
 
 
 def _detect_db_server() -> str:
@@ -35,8 +36,8 @@ class Settings:
 
     # ---- Roles / workflow statuses ----
     ROLES = {"user", "admin"}
-    INVOICE_STATUSES = {"uploaded", "validated_by_user", "pending", "validated", "rejected"}
-    DEMAND_STATUSES = {"pending", "validated", "rejected"}
+    INVOICE_STATUSES = {"uploaded", "pending", "approved", "validated", "rejected"}
+    DEMAND_STATUSES = {"pending", "approved", "validated", "rejected"}
 
     # ---- Server ----
     HOST: str = os.getenv("STEG_HOST", "127.0.0.1")
