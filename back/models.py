@@ -81,6 +81,35 @@ class Invoice(Base):
         DateTime, nullable=False, server_default=text("getdate()")
     )
 
+    # ------------------------------------------------------------------
+    # Detailed tariff breakdown (additive — STEG OCR Expansion)
+    # ------------------------------------------------------------------
+
+    # Consommation per tariff period (kWh, integer)
+    consumption_jour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    consumption_pointe: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    consumption_soiree: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    consumption_nuit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Prix Unitaire per tariff period (millimes/kWh, DECIMAL 12,3)
+    pu_jour: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    pu_pointe: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    pu_soiree: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    pu_nuit: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+
+    # Detailed Montant per tariff period (TND, DECIMAL 15,3)
+    montant_jour: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+    montant_pointe: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+    montant_soiree: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+    montant_nuit: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+
+    # Summary monetary rows (DECIMAL 15,3)
+    sous_total: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+    total_1: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+    total_2: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+    total_3: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+    net_a_payer: Mapped[Decimal | None] = mapped_column(Numeric(15, 3), nullable=True)
+
     owner = relationship("User", back_populates="invoices")
     demand = relationship(
         "Demand",

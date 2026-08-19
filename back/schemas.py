@@ -110,6 +110,34 @@ class AdminInvoiceUpdate(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Invoice — tariff detail nested models (STEG OCR Expansion)
+# ---------------------------------------------------------------------------
+
+class ConsommationDetaillee(BaseModel):
+    """Consumption (kWh) per tariff period. Missing periods are 0."""
+    jour: int = 0
+    pointe: int = 0
+    soiree: int = 0
+    nuit: int = 0
+
+
+class PrixUnitaire(BaseModel):
+    """Unit price (millimes/kWh) per tariff period. Missing periods are 0."""
+    jour: int = 0
+    pointe: int = 0
+    soiree: int = 0
+    nuit: int = 0
+
+
+class MontantDetaille(BaseModel):
+    """Detailed monetary amount per tariff period. Missing periods are '0.000'."""
+    jour: str = "0.000"
+    pointe: str = "0.000"
+    soiree: str = "0.000"
+    nuit: str = "0.000"
+
+
+# ---------------------------------------------------------------------------
 # Invoice
 # ---------------------------------------------------------------------------
 
@@ -152,10 +180,30 @@ class InvoiceOut(BaseModel):
     user_name: str | None = None
     user_email: str | None = None
 
+    # --- New fields: detailed tariff breakdown (STEG OCR Expansion) ---
+    consumption_jour: int | None = None
+    consumption_pointe: int | None = None
+    consumption_soiree: int | None = None
+    consumption_nuit: int | None = None
+    pu_jour: Decimal | None = None
+    pu_pointe: Decimal | None = None
+    pu_soiree: Decimal | None = None
+    pu_nuit: Decimal | None = None
+    montant_jour: Decimal | None = None
+    montant_pointe: Decimal | None = None
+    montant_soiree: Decimal | None = None
+    montant_nuit: Decimal | None = None
+    sous_total: Decimal | None = None
+    total_1: Decimal | None = None
+    total_2: Decimal | None = None
+    total_3: Decimal | None = None
+    net_a_payer: Decimal | None = None
+
 
 class OcrResultOut(BaseModel):
     """Raw OCR extraction results returned alongside the uploaded invoice."""
 
+    # --- Existing fields (preserved for backward compatibility) ---
     consomateur: str | None = None
     address: str | None = None
     facture: str | None = None
@@ -166,6 +214,20 @@ class OcrResultOut(BaseModel):
     devise: str = "TND"
     ocr_status: str | None = None
     confidence: dict | None = None
+
+    # --- New fields: detailed tariff breakdown (STEG OCR Expansion) ---
+    consommation_detaillee: ConsommationDetaillee | None = None
+    prix_unitaire: PrixUnitaire | None = None
+    montant_detaille: MontantDetaille | None = None
+    sous_total: str | None = None
+    total_1: str | None = None
+    total_2: str | None = None
+    total_3: str | None = None
+    net_a_payer: str | None = None
+    # Cross-check readings (preserved from existing extraction)
+    net_a_payer_table_reading: str | None = None
+    net_a_payer_coupon_reading: str | None = None
+    net_a_payer_cross_check_match: bool | None = None
 
 
 class InvoiceUploadResponse(BaseModel):
@@ -261,6 +323,7 @@ __all__ = [
     "AdminUserCreate", "AdminUserUpdate", "AdminUserOut",
     "AdminInvoiceCreate", "AdminInvoiceUpdate",
     "InvoiceValuesUpdate", "InvoiceOut", "OcrResultOut", "InvoiceUploadResponse", "InvoiceListResponse",
+    "ConsommationDetaillee", "PrixUnitaire", "MontantDetaille",
     "DemandCreate", "DemandOut", "MyDemandOut", "AdminDemandOut", "DemandDecision",
     "AuditOut",
     "DashboardStats",

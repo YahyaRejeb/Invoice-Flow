@@ -9,11 +9,14 @@ from database import get_db
 from deps import get_current_user
 from models import Demand, Invoice, User
 from schemas import (
+    ConsommationDetaillee,
     InvoiceListResponse,
     InvoiceOut,
     InvoiceUploadResponse,
     InvoiceValuesUpdate,
+    MontantDetaille,
     OcrResultOut,
+    PrixUnitaire,
 )
 from services import create_audit_log, save_upload_file
 
@@ -88,6 +91,27 @@ def upload_invoice(
         if mapped.get("currency"):
             invoice.currency = mapped["currency"]
 
+        # --- New tariff columns (STEG OCR Expansion) ---
+        # Consumption: 0 is a valid value (missing tariff period), not a skip condition
+        for col in ("consumption_jour", "consumption_pointe",
+                    "consumption_soiree", "consumption_nuit"):
+            if mapped.get(col) is not None:
+                setattr(invoice, col, mapped[col])
+        # PU: same rule
+        for col in ("pu_jour", "pu_pointe", "pu_soiree", "pu_nuit"):
+            if mapped.get(col) is not None:
+                setattr(invoice, col, mapped[col])
+        # Detailed Montant
+        for col in ("montant_jour", "montant_pointe",
+                    "montant_soiree", "montant_nuit"):
+            if mapped.get(col) is not None:
+                setattr(invoice, col, mapped[col])
+        # Summary rows: only store if extraction succeeded (not None)
+        for col in ("sous_total", "total_1", "total_2",
+                    "total_3", "net_a_payer"):
+            if mapped.get(col) is not None:
+                setattr(invoice, col, mapped[col])
+
         # Build the OCR data for the API response
         raw = ocr_result.get("ocr_raw", {})
         ocr_data_out = OcrResultOut(
@@ -101,6 +125,24 @@ def upload_invoice(
             devise=raw.get("devise", "TND"),
             ocr_status=ocr_result.get("ocr_status"),
             confidence=ocr_result.get("confidence"),
+            # --- New structured tariff fields ---
+            consommation_detaillee=ConsommationDetaillee(
+                **raw["consommation_detaillee"]
+            ) if raw.get("consommation_detaillee") else None,
+            prix_unitaire=PrixUnitaire(
+                **raw["prix_unitaire"]
+            ) if raw.get("prix_unitaire") else None,
+            montant_detaille=MontantDetaille(
+                **raw["montant_detaille"]
+            ) if raw.get("montant_detaille") else None,
+            sous_total=raw.get("sous_total"),
+            total_1=raw.get("total_1"),
+            total_2=raw.get("total_2"),
+            total_3=raw.get("total_3"),
+            net_a_payer=raw.get("net_a_payer"),
+            net_a_payer_table_reading=raw.get("net_a_payer_table_reading"),
+            net_a_payer_coupon_reading=raw.get("net_a_payer_coupon_reading"),
+            net_a_payer_cross_check_match=raw.get("net_a_payer_cross_check_match"),
         )
         logger.info("OCR extraction succeeded for %s", file_path)
     except Exception:

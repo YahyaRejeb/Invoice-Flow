@@ -52,6 +52,36 @@ def _safe_decimal(value_str: str | None) -> Decimal | None:
         return None
 
 
+def _safe_int(value, default: int = 0) -> int:
+    """Convert an OCR-extracted integer value (int or str) to int.
+
+    Returns *default* if the value is missing, 'Not Found', or unparseable.
+    This is used for consumption values where a missing tariff period means
+    zero consumption, not an OCR failure.
+    """
+    if value is None or value == "Not Found":
+        return default
+    try:
+        return int(str(value).strip().replace(" ", "").replace(",", ""))
+    except (ValueError, TypeError):
+        return default
+
+
+def _safe_decimal_tariff(value_str: str | None) -> Decimal | None:
+    """Like _safe_decimal but treats '0' and '0.000' as valid zero (not None).
+
+    Used for summary monetary rows where zero is a legitimate financial value
+    and must not be confused with an extraction failure.
+    """
+    if value_str is None or value_str == "Not Found":
+        return None
+    try:
+        cleaned = str(value_str).strip().replace(" ", "").replace(",", ".")
+        return Decimal(cleaned)
+    except (InvalidOperation, ValueError):
+        return None
+
+
 def _parse_ocr_date(date_str: str | None) -> str | None:
     """Convert OCR date format ``'MM/YYYY'`` to ISO ``'YYYY-MM-01'``.
 
@@ -156,6 +186,30 @@ def run_ocr(file_path: str) -> dict:
         "tva": float(tva) if tva else None,
         "amount_incl_tax": float(amount_incl_tax) if amount_incl_tax else None,
         "currency": "TND",
+        # --- Detailed tariff breakdown (STEG OCR Expansion) ---
+        # Consommation per period — missing period = 0 (not an OCR failure)
+        "consumption_jour":   _safe_int(parsed.get("consumption_jour"), 0),
+        "consumption_pointe": _safe_int(parsed.get("consumption_pointe"), 0),
+        "consumption_soiree": _safe_int(parsed.get("consumption_soiree"), 0),
+        "consumption_nuit":   _safe_int(parsed.get("consumption_nuit"), 0),
+        # Prix Unitaire per period — missing period = 0
+        "pu_jour":   _safe_int(parsed.get("pu_jour"), 0),
+        "pu_pointe": _safe_int(parsed.get("pu_pointe"), 0),
+        "pu_soiree": _safe_int(parsed.get("pu_soiree"), 0),
+        "pu_nuit":   _safe_int(parsed.get("pu_nuit"), 0),
+        # Detailed Montant per period — missing period = 0.000
+        "montant_jour":   _safe_decimal_tariff(parsed.get("montant_jour")),
+        "montant_pointe": _safe_decimal_tariff(parsed.get("montant_pointe")),
+        "montant_soiree": _safe_decimal_tariff(parsed.get("montant_soiree")),
+        "montant_nuit":   _safe_decimal_tariff(parsed.get("montant_nuit")),
+        # Summary monetary rows — None means extraction failed (not zero)
+        "sous_total":  _safe_decimal_tariff(parsed.get("sous_total")),
+        "total_1":     _safe_decimal_tariff(parsed.get("total_1")),
+        "total_2":     _safe_decimal_tariff(parsed.get("total_2")),
+        "total_3":     _safe_decimal_tariff(parsed.get("total_3")),
+        "net_a_payer": _safe_decimal_tariff(
+            parsed.get("net_a_payer") or parsed.get("montant ttc")
+        ),
     }
 
     logger.info(
@@ -167,6 +221,7 @@ def run_ocr(file_path: str) -> dict:
 
     return {
         "ocr_raw": {
+            # --- Existing fields (backward compatible) ---
             "consomateur": parsed.get("consomateur", "Not Found"),
             "address": parsed.get("address", "Not Found"),
             "facture": parsed.get("facture", "Not Found"),
@@ -178,6 +233,30 @@ def run_ocr(file_path: str) -> dict:
             "net_a_payer_table_reading": parsed.get("net_a_payer_table_reading"),
             "net_a_payer_coupon_reading": parsed.get("net_a_payer_coupon_reading"),
             "net_a_payer_cross_check_match": cross_match,
+            # --- New structured tariff fields (STEG OCR Expansion) ---
+            "consommation_detaillee": {
+                "jour":   _safe_int(parsed.get("consumption_jour"), 0),
+                "pointe": _safe_int(parsed.get("consumption_pointe"), 0),
+                "soiree": _safe_int(parsed.get("consumption_soiree"), 0),
+                "nuit":   _safe_int(parsed.get("consumption_nuit"), 0),
+            },
+            "prix_unitaire": {
+                "jour":   _safe_int(parsed.get("pu_jour"), 0),
+                "pointe": _safe_int(parsed.get("pu_pointe"), 0),
+                "soiree": _safe_int(parsed.get("pu_soiree"), 0),
+                "nuit":   _safe_int(parsed.get("pu_nuit"), 0),
+            },
+            "montant_detaille": {
+                "jour":   parsed.get("montant_jour", "0.000"),
+                "pointe": parsed.get("montant_pointe", "0.000"),
+                "soiree": parsed.get("montant_soiree", "0.000"),
+                "nuit":   parsed.get("montant_nuit", "0.000"),
+            },
+            "sous_total":  parsed.get("sous_total"),
+            "total_1":     parsed.get("total_1"),
+            "total_2":     parsed.get("total_2"),
+            "total_3":     parsed.get("total_3") or parsed.get("total_3(taxes)"),
+            "net_a_payer": parsed.get("net_a_payer") or parsed.get("montant ttc"),
         },
         "mapped": mapped,
         "ocr_status": ocr_status,

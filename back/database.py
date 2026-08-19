@@ -69,7 +69,49 @@ WHERE dc.parent_object_id = OBJECT_ID('dbo.AuditLogs') AND c.name = 'timestamp';
 IF @cn IS NOT NULL EXEC('ALTER TABLE [dbo].[AuditLogs] DROP CONSTRAINT [' + @cn + ']');
 ALTER TABLE [dbo].[AuditLogs] ADD CONSTRAINT [DF_AuditLogs_timestamp_local] DEFAULT (getdate()) FOR [timestamp];
 """,
+    # -----------------------------------------------------------------
+    # STEG OCR Expansion: detailed tariff breakdown columns
+    # -----------------------------------------------------------------
+    # Consommation per tariff period (INTEGER)
+    "IF COL_LENGTH('dbo.Invoices', 'consumption_jour') IS NULL "
+    "ALTER TABLE [Invoices] ADD [consumption_jour] INT NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'consumption_pointe') IS NULL "
+    "ALTER TABLE [Invoices] ADD [consumption_pointe] INT NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'consumption_soiree') IS NULL "
+    "ALTER TABLE [Invoices] ADD [consumption_soiree] INT NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'consumption_nuit') IS NULL "
+    "ALTER TABLE [Invoices] ADD [consumption_nuit] INT NULL;",
+    # Prix Unitaire per tariff period (DECIMAL 12,3 — NOT FLOAT)
+    "IF COL_LENGTH('dbo.Invoices', 'pu_jour') IS NULL "
+    "ALTER TABLE [Invoices] ADD [pu_jour] DECIMAL(12,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'pu_pointe') IS NULL "
+    "ALTER TABLE [Invoices] ADD [pu_pointe] DECIMAL(12,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'pu_soiree') IS NULL "
+    "ALTER TABLE [Invoices] ADD [pu_soiree] DECIMAL(12,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'pu_nuit') IS NULL "
+    "ALTER TABLE [Invoices] ADD [pu_nuit] DECIMAL(12,3) NULL;",
+    # Detailed Montant per tariff period (DECIMAL 15,3 — NOT FLOAT)
+    "IF COL_LENGTH('dbo.Invoices', 'montant_jour') IS NULL "
+    "ALTER TABLE [Invoices] ADD [montant_jour] DECIMAL(15,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'montant_pointe') IS NULL "
+    "ALTER TABLE [Invoices] ADD [montant_pointe] DECIMAL(15,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'montant_soiree') IS NULL "
+    "ALTER TABLE [Invoices] ADD [montant_soiree] DECIMAL(15,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'montant_nuit') IS NULL "
+    "ALTER TABLE [Invoices] ADD [montant_nuit] DECIMAL(15,3) NULL;",
+    # Summary monetary rows (DECIMAL 15,3 — NOT FLOAT)
+    "IF COL_LENGTH('dbo.Invoices', 'sous_total') IS NULL "
+    "ALTER TABLE [Invoices] ADD [sous_total] DECIMAL(15,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'total_1') IS NULL "
+    "ALTER TABLE [Invoices] ADD [total_1] DECIMAL(15,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'total_2') IS NULL "
+    "ALTER TABLE [Invoices] ADD [total_2] DECIMAL(15,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'total_3') IS NULL "
+    "ALTER TABLE [Invoices] ADD [total_3] DECIMAL(15,3) NULL;",
+    "IF COL_LENGTH('dbo.Invoices', 'net_a_payer') IS NULL "
+    "ALTER TABLE [Invoices] ADD [net_a_payer] DECIMAL(15,3) NULL;",
 )
+
 
 
 class Base(DeclarativeBase):
