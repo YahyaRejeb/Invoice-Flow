@@ -26,9 +26,9 @@ def _stats_for(db: Session, user_id: int) -> DashboardStats:
             Demand.user_id == user_id, Demand.status == "pending"
         )
     )
-    validated = _count(
+    approved = _count(
         select(func.count(Demand.demand_id)).where(
-            Demand.user_id == user_id, Demand.status == "validated"
+            Demand.user_id == user_id, Demand.status == "approved"
         )
     )
     total_kwh = _count(
@@ -41,7 +41,7 @@ def _stats_for(db: Session, user_id: int) -> DashboardStats:
         user_id=user_id,
         total_invoices=invoices,
         pending_demands=pending,
-        validated_demands=validated,
+        validated_demands=approved,
         total_kwh=int(total_kwh),
     )
 

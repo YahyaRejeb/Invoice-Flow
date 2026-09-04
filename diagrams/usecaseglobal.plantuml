@@ -1,77 +1,105 @@
 @startuml
 
+!pragma layout smetana
 left to right direction
 
-skinparam actorStyle awesome
 skinparam shadowing false
-skinparam nodesep 10
-skinparam ranksep 15
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 220
+skinparam ranksep 30
 
-actor Guest as G
-actor User as U
-actor Administrator as A
+together {
+class Users <<Entity>> {
+        user_id : int
+        full_name : String
+        email : String
+        password_hash : String
+        role : String
+        created_at : Date
+        account_status : String
 
-' Actor generalization
-U --|> G
-A --|> G
-
-' Keep actors aligned
-G -[hidden]right-> U
-U -[hidden]right-> A
-
-
-rectangle "Invoice Management System" {
-
-    ' Guest
-    usecase "Sign Up" as UC1
-    usecase "Log In" as UC2
-
-    ' User / Common
-    usecase "Upload PDF Invoice" as UC3
-    usecase "Extract Invoice Data" as UC4
-    usecase "Validate Extracted Data" as UC5
-    usecase "Modify Demand" as UC6
-    usecase "Delete Demand" as UC7
-    usecase "View My Charts" as UC8
-    usecase "Change Profile Info" as UC9
-
-    ' Administrator
-    usecase "View Overall Charts & Total Values" as UC16
-    usecase "Approve Demands" as UC10
-    usecase "Accept User Accounts" as UC11
-    usecase "Modify User Accounts" as UC12
-    usecase "Delete User Accounts" as UC13
-    usecase "View All User Charts" as UC14
-    usecase "View Total Charts & Averages" as UC15
+        insert()
+        select()
+        update()
+        delete()
 }
 
+class Invoices <<Entity>> {
+        invoice_id : int
+        user_id : int
+        file_path : String
+        supplier : String
+        invoice_no : String
+        invoice_date : Date
+        amount_excl_tax : float
+        currency : String
+        status : String
+        uploaded_at : Date
+        address : String
+        consumption_jour : int
+        consumption_pointe : int
+        consumption_soiree : int
+        consumption_nuit : int
+        pu_jour : float
+        pu_pointe : float
+        pu_soiree : float
+        pu_nuit : float
+        montant_jour : float
+        montant_pointe : float
+        montant_soiree : float
+        montant_nuit : float
+        sous_total : float
+        total_1 : float
+        total_2 : float
+        total_3 : float
+        kwh_consumed : int
+        net_a_payer : float
 
-' Guest
-G --> UC1
-G --> UC2
+        insert()
+        select()
+        update()
+        delete()
+}
 
-' User
-U --> UC3
-U --> UC5
-U --> UC6
-U --> UC7
-U --> UC8
-U --> UC9
+class Demands <<Entity>> {
+        demand_id : int
+        invoice_id : int
+        user_id : int
+        status : String
+        submitted_at : Date
+        reviewed_by_admin_id : int
+        reviewed_at : Date
 
-' Administrator
-A --> UC10
-A --> UC11
-A --> UC12
-A --> UC13
-A --> UC14
-A --> UC15
-A --> UC16
+        insert()
+        select()
+        update()
+        delete()
+}
 
-' Common use cases
-A --> UC6
-A --> UC7
+class AuditLogs <<Entity>> {
+        audit_id : int
+        demand_id : int
+        action : String
+        actor_id : int
+        field_changed : String
+        old_value : String
+        new_value : String
+        timestamp : Date
 
-' Include
-UC3 ..> UC4 : <<include>>
+        insert()
+        select()
+}
+}
+
+Users -[hidden]right-> Invoices
+Invoices -[hidden]right-> AuditLogs
+AuditLogs -[hidden]right-> Demands
+
+Users "1" -- "0..*" Invoices : upload
+Users "1" -- "0..*" Demands : submits / reviews
+Invoices "1" -- "0..*" Demands : generates
+Demands "1" -- "0..*" AuditLogs : has
+Users "1" -- "0..*" AuditLogs : generates
 
 @enduml

@@ -34,6 +34,16 @@ const Admin = {
         e.preventDefault();
         this.saveInvoice();
       });
+
+      // Auto-compute total consumption for admin invoice form
+      const updateAdminTotalKwh = () => {
+        const total = ['adminConsJour', 'adminConsPointe', 'adminConsSoiree', 'adminConsNuit']
+          .reduce((sum, id) => sum + (parseInt(document.getElementById(id)?.value, 10) || 0), 0);
+        const totalEl = document.getElementById('adminInvoiceKwh');
+        if (totalEl) totalEl.value = total;
+      };
+      ['adminConsJour', 'adminConsPointe', 'adminConsSoiree', 'adminConsNuit']
+        .forEach(id => document.getElementById(id)?.addEventListener('input', updateAdminTotalKwh));
     }
   },
 
@@ -64,12 +74,27 @@ const Admin = {
     document.getElementById('adminInvoiceDate').value = '';
     document.getElementById('adminInvoiceStatus').value = 'uploaded';
     document.getElementById('adminInvoiceAmountExclTax').value = '';
-    document.getElementById('adminInvoiceTva').value = '';
-    document.getElementById('adminInvoiceAmount').value = '';
+    document.getElementById('adminInvoiceNetAPayer').value = '';
     document.getElementById('adminInvoiceCurrency').value = 'TND';
     document.getElementById('adminInvoiceKwh').value = '';
-    document.getElementById('adminInvoiceDueDate').value = '';
     document.getElementById('adminInvoicePath').value = '';
+
+    document.getElementById('adminConsJour').value = 0;
+    document.getElementById('adminConsPointe').value = 0;
+    document.getElementById('adminConsSoiree').value = 0;
+    document.getElementById('adminConsNuit').value = 0;
+    document.getElementById('adminPuJour').value = 0;
+    document.getElementById('adminPuPointe').value = 0;
+    document.getElementById('adminPuSoiree').value = 0;
+    document.getElementById('adminPuNuit').value = 0;
+    document.getElementById('adminMontantJour').value = 0;
+    document.getElementById('adminMontantPointe').value = 0;
+    document.getElementById('adminMontantSoiree').value = 0;
+    document.getElementById('adminMontantNuit').value = 0;
+    document.getElementById('adminSousTotal').value = 0;
+    document.getElementById('adminTotal1').value = 0;
+    document.getElementById('adminTotal2').value = 0;
+    document.getElementById('adminTotal3').value = 0;
   },
 
   async saveUser() {
@@ -108,8 +133,10 @@ const Admin = {
     const isAdmin = Auth.currentUser?.role === 'admin';
     const id = document.getElementById('adminInvoiceId').value;
 
-    const num = (el) => {
-      const v = document.getElementById(el).value;
+    const num = (elId) => {
+      const el = document.getElementById(elId);
+      if (!el) return null;
+      const v = el.value;
       return v === '' || v === null ? null : Number(v);
     };
 
@@ -127,12 +154,27 @@ const Admin = {
         invoice_date: dateVal || null,
         status: document.getElementById('adminInvoiceStatus').value,
         amount_excl_tax: num('adminInvoiceAmountExclTax'),
-        tva: num('adminInvoiceTva'),
-        amount_incl_tax: num('adminInvoiceAmount'),
+        net_a_payer: num('adminInvoiceNetAPayer'),
         currency: document.getElementById('adminInvoiceCurrency').value.trim() || 'TND',
         kwh_consumed: num('adminInvoiceKwh'),
-        due_date: document.getElementById('adminInvoiceDueDate').value || null,
         file_path: document.getElementById('adminInvoicePath').value.trim() || 'uploads/unknown.pdf',
+        // Detailed fields:
+        consumption_jour: num('adminConsJour'),
+        consumption_pointe: num('adminConsPointe'),
+        consumption_soiree: num('adminConsSoiree'),
+        consumption_nuit: num('adminConsNuit'),
+        pu_jour: num('adminPuJour'),
+        pu_pointe: num('adminPuPointe'),
+        pu_soiree: num('adminPuSoiree'),
+        pu_nuit: num('adminPuNuit'),
+        montant_jour: num('adminMontantJour'),
+        montant_pointe: num('adminMontantPointe'),
+        montant_soiree: num('adminMontantSoiree'),
+        montant_nuit: num('adminMontantNuit'),
+        sous_total: num('adminSousTotal'),
+        total_1: num('adminTotal1'),
+        total_2: num('adminTotal2'),
+        total_3: num('adminTotal3'),
       };
 
       try {
@@ -164,11 +206,26 @@ const Admin = {
         invoice_no: document.getElementById('adminInvoiceNo').value.trim() || null,
         invoice_date: document.getElementById('adminInvoiceDate').value || null,
         amount_excl_tax: num('adminInvoiceAmountExclTax') || 0,
-        tva: num('adminInvoiceTva') || 0,
-        amount_incl_tax: num('adminInvoiceAmount') || 0,
+        net_a_payer: num('adminInvoiceNetAPayer') || 0,
         currency: document.getElementById('adminInvoiceCurrency').value.trim() || 'TND',
         kwh_consumed: num('adminInvoiceKwh') || 0,
-        due_date: document.getElementById('adminInvoiceDueDate').value || null,
+        // Detailed fields:
+        consumption_jour: num('adminConsJour'),
+        consumption_pointe: num('adminConsPointe'),
+        consumption_soiree: num('adminConsSoiree'),
+        consumption_nuit: num('adminConsNuit'),
+        pu_jour: num('adminPuJour'),
+        pu_pointe: num('adminPuPointe'),
+        pu_soiree: num('adminPuSoiree'),
+        pu_nuit: num('adminPuNuit'),
+        montant_jour: num('adminMontantJour'),
+        montant_pointe: num('adminMontantPointe'),
+        montant_soiree: num('adminMontantSoiree'),
+        montant_nuit: num('adminMontantNuit'),
+        sous_total: num('adminSousTotal'),
+        total_1: num('adminTotal1'),
+        total_2: num('adminTotal2'),
+        total_3: num('adminTotal3'),
       };
 
       try {
@@ -212,6 +269,10 @@ const Admin = {
         const queueTbody = document.getElementById('adminQueueTableBody');
         const navCount = document.getElementById('navPendingCount');
         if (navCount) navCount.textContent = pendingDemands.length;
+        const overviewCount = document.getElementById('statUntreatedDemands');
+        const navDemandCount = document.getElementById('navUntreatedDemands');
+        if (overviewCount) overviewCount.textContent = pendingDemands.length;
+        if (navDemandCount) navDemandCount.textContent = pendingDemands.length;
 
         if (queueTbody) {
           if (pendingDemands.length === 0) {
@@ -226,7 +287,7 @@ const Admin = {
                 <td>${d.user_name || 'User'} (${d.user_email || `usr_${d.user_id}`})</td>
                 <td><strong style="color:var(--accent-cyan);">${d.invoice_no || `INV-${d.invoice_id}`}</strong></td>
                 <td>${d.supplier || 'STEG'}</td>
-                <td><strong style="font-family: var(--font-mono); color:var(--text-main);">${UI.formatTND(d.amount_incl_tax || 0)}</strong></td>
+                <td><strong style="font-family: var(--font-mono); color:var(--text-main);">${UI.formatTND(d.net_a_payer ?? d.amount_incl_tax ?? 0)}</strong></td>
                 <td><span class="badge badge-pending"><i class="fa-solid fa-hourglass"></i> Pending Review</span></td>
                 <td style="text-align: right;">
                   <button class="btn btn-success btn-sm" onclick="Admin.reviewDemand(${d.demand_id}, 'approved')">
@@ -234,6 +295,9 @@ const Admin = {
                   </button>
                   <button class="btn btn-danger btn-sm" onclick="Admin.reviewDemand(${d.demand_id}, 'rejected')">
                     <i class="fa-solid fa-xmark"></i> Reject
+                  </button>
+                  <button class="btn btn-secondary btn-sm" onclick="Admin.inspectInvoice(${d.invoice_id})">
+                    <i class="fa-solid fa-magnifying-glass"></i> Inspect
                   </button>
                 </td>
               </tr>
@@ -269,6 +333,11 @@ const Admin = {
       if (!res.ok) return;
       const users = await res.json();
       this.adminUsers = users;
+      const untreatedAccounts = users.filter(u => (u.account_status || 'pending') === 'pending').length;
+      const overviewCount = document.getElementById('statUntreatedAccounts');
+      const navCount = document.getElementById('navUntreatedAccounts');
+      if (overviewCount) overviewCount.textContent = untreatedAccounts;
+      if (navCount) navCount.textContent = untreatedAccounts;
       const tbody = document.getElementById('adminUsersTableBody');
       if (!tbody) return;
       if (users.length === 0) {
@@ -388,6 +457,7 @@ const Admin = {
       }
 
       this.adminInvoices = rawInvoices.map(i => ({
+        ...i,
         invoice_id: i.invoice_id,
         user_id: i.user_id || Auth.currentUser.id,
         user_name: i.user_name || Auth.currentUser.name,
@@ -399,11 +469,9 @@ const Admin = {
         invoice_no: i.invoice_no || `INV-${i.invoice_id}`,
         invoice_date: i.invoice_date || null,
         amount_excl_tax: i.amount_excl_tax || 0,
-        tva: i.tva || 0,
-        amount_incl_tax: i.amount_incl_tax || 0,
+        net_a_payer: i.net_a_payer || 0,
         currency: i.currency || 'TND',
         kwh_consumed: i.kwh_consumed || 0,
-        due_date: i.due_date || null,
         status: i.status || 'uploaded',
         uploaded_at: i.uploaded_at,
         demand_id: i.demand_id,
@@ -428,7 +496,7 @@ const Admin = {
           </td>
           <td>${UI.formatDate(invoice.invoice_date)}</td>
           <td>${this.demandStatusBadge(invoice.demand_id, invoice.demand_status)}</td>
-          <td><strong style="font-family:var(--font-mono);">${UI.formatTND(invoice.amount_incl_tax || 0)}</strong></td>
+          <td><strong style="font-family:var(--font-mono);">${UI.formatTND(invoice.net_a_payer || 0)}</strong></td>
           <td style="text-align:right;">
             <button class="btn btn-secondary btn-sm" onclick="Admin.inspectInvoice(${invoice.invoice_id})">Inspect</button>
             <button class="btn btn-secondary btn-sm" onclick="Admin.viewInvoiceFile(${invoice.invoice_id})">View File</button>
@@ -475,6 +543,17 @@ const Admin = {
     if (!invoice) return;
     const isAdmin = Auth.currentUser?.role === 'admin';
 
+    const toDateInputValue = (rawValue) => {
+      if (!rawValue) return '';
+      const str = String(rawValue).trim();
+      const datePart = str.includes('T') ? str.split('T')[0] : str;
+      if (!datePart) return '';
+      const date = new Date(`${datePart}T12:00:00`);
+      if (Number.isNaN(date.getTime())) return datePart;
+      const normalized = new Date(date.getFullYear(), date.getMonth(), 1);
+      return normalized.toISOString().split('T')[0];
+    };
+
     document.getElementById('adminInvoiceId').value = invoice.invoice_id;
 
     // Lock User ID field for regular users — they cannot reassign an invoice
@@ -487,28 +566,49 @@ const Admin = {
     document.getElementById('adminInvoiceSupplier').value = invoice.supplier || 'STEG';
     document.getElementById('adminInvoiceAddress').value = invoice.address || '';
     document.getElementById('adminInvoiceNo').value = invoice.invoice_no || '';
-    document.getElementById('adminInvoiceDate').value = invoice.invoice_date ? invoice.invoice_date.substring(0, 7) : '';
+    document.getElementById('adminInvoiceDate').value = toDateInputValue(invoice.invoice_date) || toDateInputValue(invoice.uploaded_at) || '';
     document.getElementById('adminInvoiceStatus').value = invoice.status === 'validated_by_user' ? 'uploaded' : (invoice.status || 'uploaded');
     document.getElementById('adminInvoiceAmountExclTax').value = invoice.amount_excl_tax != null ? invoice.amount_excl_tax : '';
-    document.getElementById('adminInvoiceTva').value = invoice.tva != null ? invoice.tva : '';
-    document.getElementById('adminInvoiceAmount').value = invoice.amount_incl_tax != null ? invoice.amount_incl_tax : '';
+    document.getElementById('adminInvoiceNetAPayer').value = invoice.net_a_payer != null ? invoice.net_a_payer : '';
     document.getElementById('adminInvoiceCurrency').value = invoice.currency || 'TND';
     document.getElementById('adminInvoiceKwh').value = invoice.kwh_consumed != null ? invoice.kwh_consumed : '';
-    document.getElementById('adminInvoiceDueDate').value = invoice.due_date || '';
     document.getElementById('adminInvoicePath').value = invoice.file_path || '';
+
+    document.getElementById('adminConsJour').value = invoice.consumption_jour ?? 0;
+    document.getElementById('adminConsPointe').value = invoice.consumption_pointe ?? 0;
+    document.getElementById('adminConsSoiree').value = invoice.consumption_soiree ?? 0;
+    document.getElementById('adminConsNuit').value = invoice.consumption_nuit ?? 0;
+    document.getElementById('adminPuJour').value = invoice.pu_jour ?? 0;
+    document.getElementById('adminPuPointe').value = invoice.pu_pointe ?? 0;
+    document.getElementById('adminPuSoiree').value = invoice.pu_soiree ?? 0;
+    document.getElementById('adminPuNuit').value = invoice.pu_nuit ?? 0;
+    document.getElementById('adminMontantJour').value = invoice.montant_jour ?? 0;
+    document.getElementById('adminMontantPointe').value = invoice.montant_pointe ?? 0;
+    document.getElementById('adminMontantSoiree').value = invoice.montant_soiree ?? 0;
+    document.getElementById('adminMontantNuit').value = invoice.montant_nuit ?? 0;
+    document.getElementById('adminSousTotal').value = invoice.sous_total ?? 0;
+    document.getElementById('adminTotal1').value = invoice.total_1 ?? 0;
+    document.getElementById('adminTotal2').value = invoice.total_2 ?? 0;
+    document.getElementById('adminTotal3').value = invoice.total_3 ?? 0;
 
     // Focus the first editable field, not the locked User ID
     document.getElementById('adminInvoiceSupplier').focus();
   },
 
+  normalizeFileUrl(filePath) {
+    if (!filePath) return '';
+    const clean = String(filePath).replace(/\\/g, '/').replace(/^\/+/, '');
+    return clean.startsWith('uploads/') || clean.startsWith('uploads\\') ? `/${clean}` : `/${clean}`;
+  },
+
   async viewInvoiceFile(invoiceId) {
     const invoice = this.adminInvoices?.find(i => i.invoice_id === invoiceId);
-    const path = invoice?.file_path;
+    const path = invoice?.file_path || invoice?.file_name;
     if (!path) {
       UI.showToast('No file is linked to this invoice.', 'warning');
       return;
     }
-    const url = '/' + path.replace(/^\/+/, '');
+    const url = this.normalizeFileUrl(path);
     try {
       const head = await fetch(url, { method: 'HEAD' });
       if (!head.ok) {
@@ -536,9 +636,9 @@ const Admin = {
       ['Invoice No', invoice.invoice_no || '-'],
       ['Invoice Date', invoice.invoice_date || '-'],
       ['Amount Excl. Tax (HT)', UI.formatTND(invoice.amount_excl_tax || 0)],
-      ['TVA Tax', UI.formatTND(invoice.tva || 0)],
-      ['Total Incl. Tax (TTC)', UI.formatTND(invoice.amount_incl_tax || 0)],
+      ['NET A PAYER (TTC)', UI.formatTND(invoice.net_a_payer || 0)],
       ['Currency', invoice.currency || '-'],
+      ['File', invoice.file_path ? `<a href="${this.normalizeFileUrl(invoice.file_path)}" target="_blank" rel="noopener">${invoice.file_name || invoice.file_path}</a>` : 'No file attached'],
       ['Uploaded At', UI.formatDate(invoice.uploaded_at)],
       ['Demand Status', invoice.demand_id ? `DEM-${invoice.demand_id} ${this.demandStatusLabel(invoice.demand_status)}` : 'Not submitted'],
     ];
@@ -551,6 +651,54 @@ const Admin = {
             <td style="padding:0.5rem 0;"><strong style="color:var(--text-main);">${v}</strong></td>
           </tr>`).join('')}
       </table>
+      
+      <h5 style="margin-top:1.2rem; margin-bottom:0.5rem; color:var(--accent-cyan); font-size:0.85rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3rem;">
+        <i class="fa-solid fa-table-list"></i> Tariff Breakdown (Tableau de Consommation)
+      </h5>
+      <table class="custom-table" style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+        <thead>
+          <tr style="color:var(--text-muted); border-bottom:1px solid rgba(255,255,255,0.05);">
+            <th style="padding:0.4rem; text-align:left;">Période</th>
+            <th style="padding:0.4rem; text-align:center;">Consommation (kWh)</th>
+            <th style="padding:0.4rem; text-align:center;">P.U. (millimes)</th>
+            <th style="padding:0.4rem; text-align:right;">Montant (TND)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.4rem; color:var(--text-dim); font-weight:600;">Jour</td>
+            <td style="padding:0.4rem; text-align:center; color:var(--text-main);">${invoice.consumption_jour ?? 0}</td>
+            <td style="padding:0.4rem; text-align:center; color:var(--text-main);">${invoice.pu_jour ?? 0}</td>
+            <td style="padding:0.4rem; text-align:right; font-family:var(--font-mono); color:var(--text-main);">${UI.formatTND(invoice.montant_jour || 0)}</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.4rem; color:var(--text-dim); font-weight:600;">Pointe</td>
+            <td style="padding:0.4rem; text-align:center; color:var(--text-main);">${invoice.consumption_pointe ?? 0}</td>
+            <td style="padding:0.4rem; text-align:center; color:var(--text-main);">${invoice.pu_pointe ?? 0}</td>
+            <td style="padding:0.4rem; text-align:right; font-family:var(--font-mono); color:var(--text-main);">${UI.formatTND(invoice.montant_pointe || 0)}</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.4rem; color:var(--text-dim); font-weight:600;">Soirée</td>
+            <td style="padding:0.4rem; text-align:center; color:var(--text-main);">${invoice.consumption_soiree ?? 0}</td>
+            <td style="padding:0.4rem; text-align:center; color:var(--text-main);">${invoice.pu_soiree ?? 0}</td>
+            <td style="padding:0.4rem; text-align:right; font-family:var(--font-mono); color:var(--text-main);">${UI.formatTND(invoice.montant_soiree || 0)}</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:0.4rem; color:var(--text-dim); font-weight:600;">Nuit</td>
+            <td style="padding:0.4rem; text-align:center; color:var(--text-main);">${invoice.consumption_nuit ?? 0}</td>
+            <td style="padding:0.4rem; text-align:center; color:var(--text-main);">${invoice.pu_nuit ?? 0}</td>
+            <td style="padding:0.4rem; text-align:right; font-family:var(--font-mono); color:var(--text-main);">${UI.formatTND(invoice.montant_nuit || 0)}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div style="margin-top:0.8rem; display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.75rem; background:rgba(0,242,254,0.02); padding:0.5rem; border-radius:var(--radius-sm); border:1px solid rgba(0,242,254,0.05);">
+        <div>Sous Total: <strong style="font-family:var(--font-mono); color:var(--text-main);">${UI.formatTND(invoice.sous_total || 0)}</strong></div>
+        <div>Total 1: <strong style="font-family:var(--font-mono); color:var(--text-main);">${UI.formatTND(invoice.total_1 || 0)}</strong></div>
+        <div>Total 2: <strong style="font-family:var(--font-mono); color:var(--text-main);">${UI.formatTND(invoice.total_2 || 0)}</strong></div>
+        <div>Total 3 / Taxes: <strong style="font-family:var(--font-mono); color:var(--text-main);">${UI.formatTND(invoice.total_3 || 0)}</strong></div>
+      </div>
+
       <div style="margin-top:1rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
         <button class="btn btn-glow-primary btn-sm" onclick="Admin.viewInvoiceFile(${invoice.invoice_id})">
           <i class="fa-solid fa-file-pdf"></i> View Scanned File
@@ -558,6 +706,9 @@ const Admin = {
         <button class="btn btn-secondary btn-sm" onclick="Admin.editInvoice(${invoice.invoice_id}); UI.closeModal('inspectModal');">
           <i class="fa-solid fa-pen"></i> Edit Record
         </button>
+        ${invoice.demand_id ? `<button class="btn btn-success btn-sm" onclick="Admin.reviewDemand(${invoice.demand_id}, 'approved'); UI.closeModal('inspectModal');">
+          <i class="fa-solid fa-check"></i> Approve Demand
+        </button>` : ''}
       </div>
     `;
     UI.openModal('inspectModal');
@@ -608,10 +759,10 @@ const Admin = {
         <td>Sami Rejeb (usr_101)</td>
         <td><strong style="color:var(--accent-cyan);">${f.invoice_no}</strong></td>
         <td>${f.supplier}</td>
-        <td><strong style="font-family: var(--font-mono); color:var(--text-main);">${UI.formatTND(f.amount_incl_tax)}</strong></td>
+        <td><strong style="font-family: var(--font-mono); color:var(--text-main);">${UI.formatTND(f.net_a_payer)}</strong></td>
         <td><span class="badge badge-pending"><i class="fa-solid fa-hourglass"></i> Pending Review</span></td>
         <td style="text-align: right;">
-          <button class="btn btn-success btn-sm" onclick="Admin.reviewDemand('${f.id}', 'validated')">
+          <button class="btn btn-success btn-sm" onclick="Admin.reviewDemand('${f.id}', 'approved')">
             <i class="fa-solid fa-check"></i> Approve
           </button>
           <button class="btn btn-danger btn-sm" onclick="Admin.reviewDemand('${f.id}', 'rejected')">
@@ -635,7 +786,7 @@ const Admin = {
         body: JSON.stringify({ status: newStatus })
       });
       if (res.ok) {
-        UI.showToast(`Demand DEM-${demandId} marked as ${newStatus.toUpperCase()} in StegDB`, (newStatus === 'approved' || newStatus === 'validated') ? 'success' : 'danger');
+        UI.showToast(`Demand DEM-${demandId} marked as ${newStatus.toUpperCase()} in StegDB`, newStatus === 'approved' ? 'success' : 'danger');
         await this.fetchQueueFromBackend();
         await this.fetchAdminInvoices();
         if (window.Dashboard) window.Dashboard.fetchDataFromBackend();
@@ -663,7 +814,7 @@ const Admin = {
         <td><span style="font-family:var(--font-mono); font-weight:700; color:var(--text-muted);">${log.audit_log_id}</span></td>
         <td><strong style="color:var(--accent-cyan);">${log.demand_id}</strong></td>
         <td>${log.actor_id}</td>
-        <td><span class="badge badge-${(log.new_value === 'approved' || log.new_value === 'validated') ? 'validated' : 'rejected'}">${log.action}</span></td>
+        <td><span class="badge badge-${log.new_value === 'approved' ? 'validated' : 'rejected'}">  ${log.action}</span></td>
         <td><span style="color:var(--text-dim);">${log.old_value}</span> &rarr; <strong style="color:var(--text-main);">${log.new_value}</strong></td>
         <td>${UI.formatDate(log.timestamp)}</td>
       </tr>

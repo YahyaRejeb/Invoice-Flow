@@ -1,0 +1,92 @@
+@startuml
+
+allowmixing
+top to bottom direction
+
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+actor User
+
+class UI_ValidateInvoice <<Boundary>> {
+    extracted_data : Invoice data
+    validation_status : String
+    button_validate : Button
+    button_modify : Button
+
+    displayExtractedData()
+    modifyInvoiceField(field, value)
+    validateInvoiceData()
+    displayValidationMessage(message : String)
+}
+
+class C_ValidateInvoice <<Control>> {
+    getExtractedInvoice(invoice_id)
+    validateInvoiceData(invoice_id)
+    updateInvoiceData(invoice_id)
+    updateValidationStatus(invoice_id, status)
+    createDemand(invoice_id, user_id)
+}
+
+package Models {
+    class Invoices <<Entity>> {
+        invoice_id : int
+        user_id : int
+        file_path : String
+        supplier : String
+        invoice_no : String
+        invoice_date : Date
+        amount_excl_tax : float
+        currency : String
+        status : String
+        uploaded_at : Date
+        address : String
+        consumption_jour : int
+        consumption_pointe : int
+        consumption_soiree : int
+        consumption_nuit : int
+        pu_jour : float
+        pu_pointe : float
+        pu_soiree : float
+        pu_nuit : float
+        montant_jour : float
+        montant_pointe : float
+        montant_soiree : float
+        montant_nuit : float
+        sous_total : float
+        total_1 : float
+        total_2 : float
+        total_3 : float
+        kwh_consumed : int
+        net_a_payer : float
+
+        selectById(invoice_id)
+        update(invoice_id)
+    }
+
+    class Demands <<Entity>> {
+        demand_id : int
+        invoice_id : int
+        user_id : int
+        status : String
+        submitted_at : Date
+        reviewed_by_admin_id : int
+        reviewed_at : Date
+
+        insert()
+    }
+
+    Invoices -[hidden]right-> Demands
+}
+
+User --> UI_ValidateInvoice
+UI_ValidateInvoice --> C_ValidateInvoice
+C_ValidateInvoice -- Models 
+Invoices "1" -- "1" Demands : generates
+
+UI_ValidateInvoice -[hidden]down-> Models
+C_ValidateInvoice -[hidden]down-> Models
+UI_ValidateInvoice -[hidden]right-> C_ValidateInvoice
+
+@enduml

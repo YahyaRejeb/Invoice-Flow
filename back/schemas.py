@@ -85,12 +85,28 @@ class AdminInvoiceCreate(BaseModel):
     invoice_no: str | None = Field(default=None, max_length=50)
     invoice_date: date | None = None
     amount_excl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
-    tva: Decimal | None = Field(default=None, ge=0, decimal_places=3)
-    amount_incl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    net_a_payer: Decimal | None = Field(default=None, ge=0, decimal_places=3)
     currency: str = Field(default="TND", max_length=10)
     kwh_consumed: int | None = Field(default=None, ge=0)
-    due_date: date | None = None
-    status: str = Field(default="uploaded", pattern="^(uploaded|pending|approved|validated|rejected)$")
+    status: str = Field(default="uploaded", pattern="^(uploaded|pending|approved|rejected)$")
+
+    # --- Detailed tariff breakdown (STEG OCR Expansion) — all optional ---
+    consumption_jour: int | None = Field(default=None, ge=0)
+    consumption_pointe: int | None = Field(default=None, ge=0)
+    consumption_soiree: int | None = Field(default=None, ge=0)
+    consumption_nuit: int | None = Field(default=None, ge=0)
+    pu_jour: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_pointe: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_soiree: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_nuit: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_jour: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_pointe: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_soiree: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_nuit: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    sous_total: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_1: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_2: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_3: Decimal | None = Field(default=None, ge=0, decimal_places=3)
 
 
 class AdminInvoiceUpdate(BaseModel):
@@ -101,12 +117,29 @@ class AdminInvoiceUpdate(BaseModel):
     invoice_no: str | None = Field(default=None, max_length=50)
     invoice_date: date | None = None
     amount_excl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
-    tva: Decimal | None = Field(default=None, ge=0, decimal_places=3)
-    amount_incl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    net_a_payer: Decimal | None = Field(default=None, ge=0, decimal_places=3)
     currency: str | None = Field(default=None, max_length=10)
     kwh_consumed: int | None = Field(default=None, ge=0)
-    due_date: date | None = None
-    status: str | None = Field(default=None, pattern="^(uploaded|pending|approved|validated|rejected)$")
+    status: str | None = Field(default=None, pattern="^(uploaded|pending|approved|rejected)$")
+
+    # --- Detailed tariff breakdown (STEG OCR Expansion) — all optional ---
+    consumption_jour: int | None = Field(default=None, ge=0)
+    consumption_pointe: int | None = Field(default=None, ge=0)
+    consumption_soiree: int | None = Field(default=None, ge=0)
+    consumption_nuit: int | None = Field(default=None, ge=0)
+    pu_jour: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_pointe: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_soiree: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_nuit: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_jour: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_pointe: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_soiree: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_nuit: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    sous_total: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_1: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_2: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_3: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+
 
 
 # ---------------------------------------------------------------------------
@@ -149,11 +182,28 @@ class InvoiceValuesUpdate(BaseModel):
     invoice_no: str | None = Field(default=None, max_length=50)
     invoice_date: date | None = None
     amount_excl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
-    tva: Decimal | None = Field(default=None, ge=0, decimal_places=3)
-    amount_incl_tax: Decimal | None = Field(default=None, ge=0, decimal_places=3)
     currency: str = Field(default="TND", max_length=10)
     kwh_consumed: int | None = Field(default=None, ge=0)
-    due_date: date | None = None
+
+    # --- Detailed tariff breakdown (STEG OCR Expansion) — all optional ---
+    consumption_jour: int | None = Field(default=None, ge=0)
+    consumption_pointe: int | None = Field(default=None, ge=0)
+    consumption_soiree: int | None = Field(default=None, ge=0)
+    consumption_nuit: int | None = Field(default=None, ge=0)
+    pu_jour: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_pointe: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_soiree: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    pu_nuit: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_jour: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_pointe: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_soiree: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    montant_nuit: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    sous_total: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_1: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_2: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    total_3: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    net_a_payer: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+
 
 
 class InvoiceOut(BaseModel):
@@ -168,11 +218,8 @@ class InvoiceOut(BaseModel):
     invoice_no: str | None = None
     invoice_date: date | None = None
     amount_excl_tax: Decimal | None = None
-    tva: Decimal | None = None
-    amount_incl_tax: Decimal | None = None
     currency: str | None = None
     kwh_consumed: int | None = None
-    due_date: date | None = None
     status: str | None = None
     uploaded_at: datetime | None = None
     demand_id: int | None = None
@@ -214,6 +261,8 @@ class OcrResultOut(BaseModel):
     devise: str = "TND"
     ocr_status: str | None = None
     confidence: dict | None = None
+    processing_time: float | None = None
+    time_taken: str | None = None
 
     # --- New fields: detailed tariff breakdown (STEG OCR Expansion) ---
     consommation_detaillee: ConsommationDetaillee | None = None
@@ -234,6 +283,24 @@ class InvoiceUploadResponse(BaseModel):
     invoice: InvoiceOut
     ocr_data: OcrResultOut | None = None
     message: str = "Upload successful."
+
+
+class BatchUploadResult(BaseModel):
+    """Result for a single file in a batch upload."""
+    filename: str
+    success: bool
+    invoice: InvoiceOut | None = None
+    ocr_data: OcrResultOut | None = None
+    message: str
+    error: str | None = None
+
+
+class BatchUploadResponse(BaseModel):
+    """Response for batch upload containing results for all files."""
+    total: int
+    successful: int
+    failed: int
+    results: list[BatchUploadResult]
 
 
 class InvoiceListResponse(BaseModel):
@@ -270,7 +337,7 @@ class MyDemandOut(BaseModel):
     invoice_id: int
     invoice_no: str | None = None
     supplier: str | None = None
-    amount_incl_tax: Decimal | None = None
+    net_a_payer: Decimal | None = None
     status: str
     submitted_at: datetime
 
@@ -284,7 +351,7 @@ class AdminDemandOut(MyDemandOut):
 
 
 class DemandDecision(BaseModel):
-    status: str = Field(pattern="^(approved|validated|rejected)$")
+    status: str = Field(pattern="^(approved|rejected)$")
 
 
 # ---------------------------------------------------------------------------

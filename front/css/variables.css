@@ -1,97 +1,141 @@
 /* ==========================================================================
-   STEG Facture Platform - Professional Enterprise Design System Tokens
+   InvoiceFlow Platform - Modern Enterprise Design System
+   Refined Professional Aesthetic with Perfect Visual Balance
    ========================================================================== */
 
 :root {
-  /* Core Slate & Deep Navy Colors (Unified Professional Palette) */
-  --bg-primary: #020617;
-  --bg-secondary: #0f172a;
-  --bg-tertiary: #1e293b;
-  --bg-card: #1e293b;
-  --bg-glass: rgba(30, 41, 59, 0.7);
-  --bg-glass-hover: rgba(30, 41, 59, 0.9);
+  /* Core Background Palette - Deep Navy with Refined Depth */
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #0f1420;
+  --bg-tertiary: #1a1f2e;
+  --bg-card: #151925;
+  --bg-glass: rgba(21, 25, 37, 0.75);
+  --bg-glass-hover: rgba(21, 25, 37, 0.92);
+  --bg-elevated: #1f2533;
 
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-glow: rgba(59, 130, 246, 0.2);
-  --border-active: #3b82f6;
+  /* Border System - Refined Subtle Strokes */
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --border-focus: rgba(14, 165, 233, 0.4);
+  --border-active: #0ea5e9;
 
-  /* Unified Brand Accents */
-  --accent-primary: #3b82f6;    /* Cobalt Blue */
-  --accent-secondary: #64748b;  /* Slate */
-  --accent-cyan: #0ea5e9;       /* Sky Blue */
-  --accent-emerald: #10b981;    /* Success */
-  --accent-amber: #f59e0b;      /* Warning */
-  --accent-rose: #f43f5e;       /* Danger */
-  --accent-violet: #8b5cf6;     /* Purple/Accent */
+  /* Brand Accent Colors - Vibrant & Professional */
+  --accent-primary: #2563eb;    /* Rich Blue */
+  --accent-cyan: #0ea5e9;       /* Sky Blue - Primary Brand */
+  --accent-emerald: #10b981;    /* Success Green */
+  --accent-amber: #f59e0b;      /* Warning Amber */
+  --accent-rose: #f43f5e;       /* Danger Red */
+  --accent-violet: #8b5cf6;     /* Accent Purple */
+  --accent-indigo: #6366f1;     /* Deep Indigo */
 
-  /* Professional Gradients */
-  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --gradient-card-border: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
-  --gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  --gradient-warning: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-  --gradient-danger: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
+  /* Semantic Color Palette */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #f43f5e;
+  --color-info: #0ea5e9;
 
-  /* Text Typography */
-  --text-main: #f8fafc;
+  /* Modern Gradients - Smooth & Elegant */
+  --gradient-primary: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --gradient-danger: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  --gradient-subtle: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(37, 99, 235, 0.04) 100%);
+
+  /* Typography Scale - Refined Hierarchy */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
   --text-dim: #64748b;
+  --text-disabled: #475569;
   --text-inverse: #ffffff;
 
-  /* Font Families */
-  --font-heading: 'Outfit', -apple-system, sans-serif;
+  /* Font Families - Premium Typefaces */
+  --font-heading: 'Outfit', 'Inter', -apple-system, sans-serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  --font-mono: 'Fira Code', monospace;
+  --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
 
-  /* Elevation & Clean Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.5);
-  --shadow-neon: 0 0 15px rgba(59, 130, 246, 0.3);
+  /* Refined Shadow System */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.32);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --shadow-glow-cyan: 0 0 20px rgba(14, 165, 233, 0.25);
+  --shadow-glow-emerald: 0 0 20px rgba(16, 185, 129, 0.25);
 
-  /* Layout Measurements */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* Spacing Scale - 4px Base Grid */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.5rem;    /* 8px */
+  --space-md: 0.75rem;   /* 12px */
+  --space-lg: 1rem;      /* 16px */
+  --space-xl: 1.5rem;    /* 24px */
+  --space-2xl: 2rem;     /* 32px */
+  --space-3xl: 3rem;     /* 48px */
+
+  /* Border Radius System */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
   --radius-full: 9999px;
 
+  /* Layout Constants */
   --sidebar-width: 280px;
-  --topbar-height: 72px;
-  
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s ease;
-  --transition-bounce: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --topbar-height: 70px;
+  --content-max-width: 1400px;
+
+  /* Timing Functions - Smooth & Natural */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Light Theme Mode Overrides */
+/* Light Theme Mode - Clean & Professional */
 [data-theme="light"] {
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f1f5f9;
   --bg-card: #ffffff;
-  --bg-glass: rgba(255, 255, 255, 0.7);
-  --bg-glass-hover: rgba(255, 255, 255, 0.9);
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --bg-glass-hover: rgba(255, 255, 255, 0.95);
+  --bg-elevated: #ffffff;
 
   --border-color: #e2e8f0;
-  --border-glow: rgba(59, 130, 246, 0.15);
-  --border-active: #2563eb;
+  --border-hover: #cbd5e1;
+  --border-focus: rgba(14, 165, 233, 0.4);
+  --border-active: #0ea5e9;
 
   --accent-primary: #2563eb;
-  --accent-secondary: #475569;
   --accent-cyan: #0ea5e9;
-  --accent-emerald: #059669;
-  --accent-amber: #d97706;
-  --accent-rose: #e11d48;
-  --accent-violet: #7c3aed;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #f43f5e;
+  --accent-violet: #8b5cf6;
+  --accent-indigo: #6366f1;
 
-  --text-main: #0f172a;
-  --text-muted: #475569;
-  --text-dim: #64748b;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #f43f5e;
+  --color-info: #0ea5e9;
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+  --text-disabled: #cbd5e1;
   --text-inverse: #ffffff;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.12);
-  --shadow-neon: 0 0 15px rgba(59, 130, 246, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --shadow-glow-cyan: 0 0 20px rgba(14, 165, 233, 0.2);
+  --shadow-glow-emerald: 0 0 20px rgba(16, 185, 129, 0.2);
 }
 

@@ -9,6 +9,8 @@ from database import get_db
 from deps import get_current_user
 from models import Demand, Invoice, User
 from schemas import (
+    BatchUploadResponse,
+    BatchUploadResult,
     ConsommationDetaillee,
     InvoiceListResponse,
     InvoiceOut,
@@ -84,10 +86,6 @@ def upload_invoice(
                 pass
         if mapped.get("amount_excl_tax") is not None:
             invoice.amount_excl_tax = mapped["amount_excl_tax"]
-        if mapped.get("tva") is not None:
-            invoice.tva = mapped["tva"]
-        if mapped.get("amount_incl_tax") is not None:
-            invoice.amount_incl_tax = mapped["amount_incl_tax"]
         if mapped.get("currency"):
             invoice.currency = mapped["currency"]
 
@@ -97,6 +95,11 @@ def upload_invoice(
                     "consumption_soiree", "consumption_nuit"):
             if mapped.get(col) is not None:
                 setattr(invoice, col, mapped[col])
+        invoice.kwh_consumed = sum(
+            mapped.get(col, 0) or 0
+            for col in ("consumption_jour", "consumption_pointe",
+                        "consumption_soiree", "consumption_nuit")
+        )
         # PU: same rule
         for col in ("pu_jour", "pu_pointe", "pu_soiree", "pu_nuit"):
             if mapped.get(col) is not None:
@@ -125,6 +128,8 @@ def upload_invoice(
             devise=raw.get("devise", "TND"),
             ocr_status=ocr_result.get("ocr_status"),
             confidence=ocr_result.get("confidence"),
+            processing_time=ocr_result.get("processing_time"),
+            time_taken=raw.get("time_taken") or (f"{ocr_result['processing_time']}s" if ocr_result.get("processing_time") is not None else None),
             # --- New structured tariff fields ---
             consommation_detaillee=ConsommationDetaillee(
                 **raw["consommation_detaillee"]
@@ -155,6 +160,149 @@ def upload_invoice(
         invoice=_invoice_out(invoice),
         ocr_data=ocr_data_out,
         message="Upload successful. OCR extraction complete." if ocr_data_out else "Upload successful. OCR extraction failed — please fill in values manually.",
+    )
+
+
+@router.post("/upload-batch", response_model=BatchUploadResponse, status_code=status.HTTP_201_CREATED)
+def upload_invoices_batch(
+    files: list[UploadFile],
+    db: DbDep,
+    current_user: User = Depends(get_current_user),
+):
+    """Upload multiple invoice PDFs/images and run OCR extraction on each one.
+
+    Returns a batch response with individual results for each file.
+    Each file is processed independently through the same OCR pipeline.
+    """
+    if not files:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files provided")
+
+    if len(files) > 20:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum 20 files per batch")
+
+    results: list[BatchUploadResult] = []
+    successful = 0
+    failed = 0
+
+    for file in files:
+        try:
+            # Process each file using the same logic as single upload
+            file_path = save_upload_file(file)
+            invoice = Invoice(user_id=current_user.user_id, file_path=file_path, uploaded_at=datetime.now())
+
+            # --- Run OCR on the saved file ---
+            ocr_result = None
+            ocr_data_out = None
+            try:
+                from ocr_service import run_ocr
+                from config import UPLOADS_DIR
+
+                abs_file_path = str(UPLOADS_DIR.parent / file_path)
+                ocr_result = run_ocr(abs_file_path)
+
+                # Auto-populate the invoice row with mapped OCR values
+                mapped = ocr_result.get("mapped", {})
+                if mapped.get("address"):
+                    invoice.address = mapped["address"]
+                if mapped.get("invoice_no"):
+                    invoice.invoice_no = mapped["invoice_no"]
+                if mapped.get("invoice_date"):
+                    try:
+                        invoice.invoice_date = date_type.fromisoformat(mapped["invoice_date"])
+                    except (ValueError, TypeError):
+                        pass
+                if mapped.get("amount_excl_tax") is not None:
+                    invoice.amount_excl_tax = mapped["amount_excl_tax"]
+                if mapped.get("currency"):
+                    invoice.currency = mapped["currency"]
+
+                # Tariff columns
+                for col in ("consumption_jour", "consumption_pointe",
+                            "consumption_soiree", "consumption_nuit"):
+                    if mapped.get(col) is not None:
+                        setattr(invoice, col, mapped[col])
+                invoice.kwh_consumed = sum(
+                    mapped.get(col, 0) or 0
+                    for col in ("consumption_jour", "consumption_pointe",
+                                "consumption_soiree", "consumption_nuit")
+                )
+                for col in ("pu_jour", "pu_pointe", "pu_soiree", "pu_nuit"):
+                    if mapped.get(col) is not None:
+                        setattr(invoice, col, mapped[col])
+                for col in ("montant_jour", "montant_pointe",
+                            "montant_soiree", "montant_nuit"):
+                    if mapped.get(col) is not None:
+                        setattr(invoice, col, mapped[col])
+                for col in ("sous_total", "total_1", "total_2",
+                            "total_3", "net_a_payer"):
+                    if mapped.get(col) is not None:
+                        setattr(invoice, col, mapped[col])
+
+                # Build OCR data for response
+                raw = ocr_result.get("ocr_raw", {})
+                ocr_data_out = OcrResultOut(
+                    consomateur=raw.get("consomateur"),
+                    address=raw.get("address"),
+                    facture=raw.get("facture"),
+                    date=raw.get("date"),
+                    montant_ht=raw.get("montant_ht"),
+                    total_3_taxes=raw.get("total_3_taxes"),
+                    montant_ttc=raw.get("montant_ttc"),
+                    devise=raw.get("devise", "TND"),
+                    ocr_status=ocr_result.get("ocr_status"),
+                    confidence=ocr_result.get("confidence"),
+                    processing_time=ocr_result.get("processing_time"),
+                    time_taken=raw.get("time_taken") or (f"{ocr_result['processing_time']}s" if ocr_result.get("processing_time") is not None else None),
+                    consommation_detaillee=ConsommationDetaillee(
+                        **raw["consommation_detaillee"]
+                    ) if raw.get("consommation_detaillee") else None,
+                    prix_unitaire=PrixUnitaire(
+                        **raw["prix_unitaire"]
+                    ) if raw.get("prix_unitaire") else None,
+                    montant_detaille=MontantDetaille(
+                        **raw["montant_detaille"]
+                    ) if raw.get("montant_detaille") else None,
+                    sous_total=raw.get("sous_total"),
+                    total_1=raw.get("total_1"),
+                    total_2=raw.get("total_2"),
+                    total_3=raw.get("total_3"),
+                    net_a_payer=raw.get("net_a_payer"),
+                    net_a_payer_table_reading=raw.get("net_a_payer_table_reading"),
+                    net_a_payer_coupon_reading=raw.get("net_a_payer_coupon_reading"),
+                    net_a_payer_cross_check_match=raw.get("net_a_payer_cross_check_match"),
+                )
+                logger.info("OCR extraction succeeded for %s in batch", file_path)
+            except Exception as ocr_err:
+                logger.exception("OCR extraction failed for %s in batch — invoice saved without OCR data", file_path)
+
+            db.add(invoice)
+            db.commit()
+            db.refresh(invoice)
+
+            results.append(BatchUploadResult(
+                filename=file.filename or "unknown",
+                success=True,
+                invoice=_invoice_out(invoice),
+                ocr_data=ocr_data_out,
+                message="OCR extraction complete" if ocr_data_out else "OCR extraction failed — please fill in values manually",
+            ))
+            successful += 1
+
+        except Exception as e:
+            logger.exception("Failed to process file %s in batch", file.filename)
+            results.append(BatchUploadResult(
+                filename=file.filename or "unknown",
+                success=False,
+                message="Upload failed",
+                error=str(e),
+            ))
+            failed += 1
+
+    return BatchUploadResponse(
+        total=len(files),
+        successful=successful,
+        failed=failed,
+        results=results,
     )
 
 
@@ -200,11 +348,23 @@ def update_invoice_values(
     invoice.invoice_no = payload.invoice_no
     invoice.invoice_date = payload.invoice_date
     invoice.amount_excl_tax = payload.amount_excl_tax
-    invoice.tva = payload.tva
-    invoice.amount_incl_tax = payload.amount_incl_tax
     invoice.currency = payload.currency
-    invoice.kwh_consumed = payload.kwh_consumed
-    invoice.due_date = payload.due_date
+    invoice.kwh_consumed = sum(
+        getattr(payload, col, 0) or 0
+        for col in ("consumption_jour", "consumption_pointe",
+                    "consumption_soiree", "consumption_nuit")
+    )
+    # --- New tariff fields (STEG OCR Expansion) ---
+    _TARIFF_FIELDS = (
+        "consumption_jour", "consumption_pointe", "consumption_soiree", "consumption_nuit",
+        "pu_jour", "pu_pointe", "pu_soiree", "pu_nuit",
+        "montant_jour", "montant_pointe", "montant_soiree", "montant_nuit",
+        "sous_total", "total_1", "total_2", "total_3", "net_a_payer",
+    )
+    for _field in _TARIFF_FIELDS:
+        _val = getattr(payload, _field, None)
+        if _val is not None:
+            setattr(invoice, _field, _val)
 
     demand: Demand | None = invoice.demand
     if demand is not None:

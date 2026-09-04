@@ -1,0 +1,87 @@
+@startuml
+
+allowmixing
+top to bottom direction
+
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+actor Visitor
+
+class UI_Login <<Boundary>> {
+    email : String
+    password : String
+    button_login : Button
+
+    enterCredentials(email, password)
+    clickLoginButton()
+    displayMessage(message : String)
+}
+
+class C_Login <<Control>> {
+    authenticate(email, password)
+    findUserByEmail(email)
+    verifyPassword(password, password_hash)
+}
+
+package Models {
+    class Users <<Entity>> {
+        user_id : int
+        email : String
+        password_hash : String
+        role : String
+        account_status : String
+
+        select()
+    }
+}
+
+Visitor --> UI_Login
+UI_Login --> C_Login
+C_Login --> Users : reads
+
+UI_Login -[hidden]down-> Models
+C_Login -[hidden]down-> Models
+UI_Login -[hidden]right-> C_Login
+
+@enduml
+
+left to right direction
+
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+actor Guest
+
+class "UI-SignUp" <<Boundary>> {
+    fullName : text field
+    email : text field
+    password : text field
+
+    enterInformation()
+    clickSignUp()
+}
+
+class "C-SignUp" <<Control>> {
+    validate()
+    checkEmail()
+    createAccount()
+    displayMessage()
+}
+
+class "User" <<Entity>> {
+    userId : int
+    fullName : string
+    email : string
+    passwordHash : string
+    role : string
+    accountStatus : string
+    createdAt : datetime
+}
+
+Guest --> "UI-SignUp"
+"UI-SignUp" --> "C-SignUp"
+"C-SignUp" --> "User"
+
+@enduml

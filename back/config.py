@@ -15,34 +15,37 @@ UPLOADS_DIR = PROJECT_DIR / "uploads"
 
 
 def _detect_db_server() -> str:
-    """Return the configured SQL Server host, defaulting to LocalDB MSSQLLocalDB."""
-    return os.getenv("STEG_DB_SERVER", "(localdb)\\MSSQLLocalDB")
+    """Return the configured SQL Server host, defaulting to the InvoiceFlow instance."""
+    return os.getenv("INVOICEFLOW_DB_SERVER", "SE7LLI")
 
 
 class Settings:
     # ---- SQL Server connection (Windows / trusted auth) ----
     DB_SERVER: str = _detect_db_server()
-    DB_NAME: str = os.getenv("STEG_DB_NAME", "StegDB")
-    DB_DRIVER: str = os.getenv("STEG_DB_DRIVER", "ODBC Driver 18 for SQL Server")
+    DB_NAME: str = os.getenv("INVOICEFLOW_DB_NAME", "StegDB")
+    DB_DRIVER: str = os.getenv("INVOICEFLOW_DB_DRIVER", "ODBC Driver 18 for SQL Server")
 
     # ---- Auth (JWT) ----
-    JWT_SECRET: str = os.getenv("STEG_JWT_SECRET", "steg-dev-secret-change-me")
+    JWT_SECRET: str = os.getenv("INVOICEFLOW_JWT_SECRET", "invoiceflow-dev-secret-change-me")
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = int(os.getenv("STEG_JWT_EXPIRE_MINUTES", "720"))
+    JWT_EXPIRE_MINUTES: int = int(os.getenv("INVOICEFLOW_JWT_EXPIRE_MINUTES", "720"))
 
     # ---- Upload constraints ----
-    MAX_UPLOAD_MB: int = int(os.getenv("STEG_MAX_UPLOAD_MB", "10"))
+    MAX_UPLOAD_MB: int = int(os.getenv("INVOICEFLOW_MAX_UPLOAD_MB", "10"))
     ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp"}
 
     # ---- Roles / workflow statuses ----
     ROLES = {"user", "admin"}
-    INVOICE_STATUSES = {"uploaded", "pending", "approved", "validated", "rejected"}
-    DEMAND_STATUSES = {"pending", "approved", "validated", "rejected"}
+    INVOICE_STATUSES = {"uploaded", "pending", "approved", "rejected"}
+    DEMAND_STATUSES = {"pending", "approved", "rejected"}
 
     # ---- Server ----
-    HOST: str = os.getenv("STEG_HOST", "127.0.0.1")
-    PORT: int = int(os.getenv("STEG_PORT", "8000"))
-    SEED: bool = os.getenv("STEG_SEED", "1").lower() in {"1", "true", "yes"}
+    HOST: str = os.getenv("INVOICEFLOW_HOST", "127.0.0.1")
+    PORT: int = int(os.getenv("INVOICEFLOW_PORT", "8000"))
+    SEED: bool = os.getenv("INVOICEFLOW_SEED", "0").lower() in {"1", "true", "yes"}
+
+    # ---- Power BI Analytics (Publish to Web embed URL) ----
+    POWERBI_EMBED_URL: str = os.getenv("POWERBI_EMBED_URL") or "https://app.powerbi.com/reportEmbed?reportId=96902f73-9b4c-4332-82a2-d5f389b4d82f&autoAuth=true&ctid=1ecd776d-d57f-4de0-a67a-eca9809e8d8d"
 
     def _odbc_connect(self, database: str) -> str:
         """Build an ODBC connection string for the given database."""
@@ -56,7 +59,7 @@ class Settings:
 
     @property
     def database_url(self) -> str:
-        """SQLAlchemy URL using odbc_connect (works for LocalDB and regular instances)."""
+        """SQLAlchemy URL using odbc_connect for the configured SQL Server instance."""
         conn_str = self._odbc_connect(self.DB_NAME)
         return f"mssql+pyodbc:///?odbc_connect={quote_plus(conn_str)}"
 

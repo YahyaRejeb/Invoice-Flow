@@ -1,12 +1,69 @@
 @startuml
 
-left to right direction
+allowmixing
+top to bottom direction
 
-actor Guest
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
 actor User
-actor Administrator
 
-Guest -[hidden]-> User
-User -[hidden]-> Administrator
+class UI_ConsultInvoices <<Boundary>> {
+    Invoice Directory: List <<Invoices>>
+    modifyInvoice(invoice_id)
+    selectInvoice(invoice_id)
+    displayInvoiceDetails(invoice_id)
+}
+
+class C_ConsultInvoices <<Control>> {
+    load(user_id)
+    load(invoice_id)
+}
+
+package Models {
+    class Invoices <<Entity>> {
+        invoice_id : int
+        user_id : int
+        file_path : String
+        supplier : String
+        invoice_no : String
+        invoice_date : Date
+        amount_excl_tax : float
+        currency : String
+        status : String
+        uploaded_at : Date
+        address : String
+        consumption_jour : int
+        consumption_pointe : int
+        consumption_soiree : int
+        consumption_nuit : int
+        pu_jour : float
+        pu_pointe : float
+        pu_soiree : float
+        pu_nuit : float
+        montant_jour : float
+        montant_pointe : float
+        montant_soiree : float
+        montant_nuit : float
+        sous_total : float
+        total_1 : float
+        total_2 : float
+        total_3 : float
+        kwh_consumed : int
+        net_a_payer : float
+
+        selectByUserId(user_id)
+        selectById(invoice_id)
+    }
+}
+
+User --> UI_ConsultInvoices
+UI_ConsultInvoices --> C_ConsultInvoices
+C_ConsultInvoices --> Invoices : reads
+
+UI_ConsultInvoices -[hidden]down-> Models
+C_ConsultInvoices -[hidden]down-> Models
+UI_ConsultInvoices -[hidden]right-> C_ConsultInvoices
 
 @enduml

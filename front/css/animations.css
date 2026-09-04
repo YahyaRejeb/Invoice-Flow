@@ -1,76 +1,159 @@
 /* ==========================================================================
-   STEG Facture Platform - Micro-Animations & Radar Keyframes
+   InvoiceFlow Platform - Modern Animations & Micro-Interactions
+   Smooth, Professional Motion Design
    ========================================================================== */
 
-@keyframes floatOrb {
-  0% { transform: scale(1) translate(0, 0); }
-  50% { transform: scale(1.2) translate(40px, -30px); }
-  100% { transform: scale(0.9) translate(-30px, 40px); }
+/* ========== ENTRANCE ANIMATIONS ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes heroEntry {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
+/* Apply Animations */
 .animate-hero {
   animation: heroEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.view-section {
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ========== LOADING & PROGRESS ANIMATIONS ========== */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Spinner Utility */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Pulse Utility */
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ========== OCR PROCESSING ANIMATIONS ========== */
 @keyframes scanBeam {
-  0% { top: 0%; opacity: 0; }
-  15% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { top: 100%; opacity: 0; }
+  0% {
+    top: -5%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 105%;
+    opacity: 0;
+  }
 }
 
 .scanner-laser-beam {
   position: absolute;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
-  box-shadow: 0 0 10px var(--accent-cyan);
+  box-shadow: 0 0 12px var(--accent-cyan);
   pointer-events: none;
   z-index: 10;
-  animation: scanBeam 2.8s infinite ease-in-out;
+  animation: scanBeam 3s infinite ease-in-out;
 }
 
-/* OCR Bounding Box Interactive Overlays */
-.ocr-bounding-box {
-  position: absolute;
-  border: 2px dashed var(--accent-cyan);
-  background: rgba(2, 132, 199, 0.1);
-  transition: all 0.2s ease;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.ocr-bounding-box:hover, .ocr-bounding-box.active {
-  border-style: solid;
-  border-color: var(--accent-amber);
-  background: rgba(245, 158, 11, 0.18);
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
-  transform: scale(1.01);
-  z-index: 15;
-}
-
-/* Radar Pulse for Processing Screen */
+/* ========== RADAR PULSE FOR PROCESSING ========== */
 @keyframes radarPulse {
-  0% { transform: scale(0.8); opacity: 0.8; }
-  100% { transform: scale(2.2); opacity: 0; }
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
 }
 
 .radar-scan-container {
   position: relative;
-  width: 100px;
-  height: 100px;
-  margin: 0 auto 1.5rem auto;
+  width: 110px;
+  height: 110px;
+  margin: 0 auto 2rem auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,16 +163,39 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(0, 242, 254, 0.25);
+  background: rgba(14, 165, 233, 0.2);
   border: 2px solid var(--accent-cyan);
-  animation: radarPulse 2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+  animation: radarPulse 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.radar-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.15);
+  border: 2px solid var(--accent-cyan);
+  animation: radarPulse 2.5s 0.8s infinite cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .radar-icon {
-  font-size: 2.8rem;
+  font-size: 3rem;
   color: var(--accent-cyan);
   position: relative;
   z-index: 2;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ========== PULSING DOT INDICATOR ========== */
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
 }
 
 .pulse-dot {
@@ -97,15 +203,354 @@
   height: 8px;
   border-radius: 50%;
   background: var(--accent-cyan);
-  box-shadow: 0 0 10px var(--accent-cyan);
-  animation: pulseDot 1.5s infinite alternate;
+  box-shadow: 0 0 12px var(--accent-cyan);
+  animation: pulseDot 2s infinite ease-in-out;
 }
 
-@keyframes pulseDot {
-  0% { transform: scale(0.8); opacity: 0.6; }
-  100% { transform: scale(1.4); opacity: 1; }
+/* ========== OCR BOUNDING BOX HIGHLIGHTS ========== */
+@keyframes highlightFade {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
-.view-section {
-  animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.ocr-bounding-box {
+  position: absolute;
+  border: 2px dashed var(--accent-cyan);
+  background: rgba(14, 165, 233, 0.1);
+  transition: all var(--transition-normal);
+  cursor: pointer;
+  border-radius: 6px;
+  pointer-events: auto;
+}
+
+.ocr-bounding-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-cyan);
+  opacity: 0;
+  animation: highlightFade 2s infinite ease-in-out;
+  border-radius: 4px;
+}
+
+.ocr-bounding-box:hover,
+.ocr-bounding-box.active {
+  border-style: solid;
+  border-color: var(--accent-amber);
+  background: rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.4);
+  transform: scale(1.02);
+  z-index: 15;
+}
+
+.ocr-bounding-box:hover::before,
+.ocr-bounding-box.active::before {
+  animation: none;
+  opacity: 0;
+}
+
+/* ========== GLOW EFFECTS ========== */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 10px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 20px currentColor;
+  }
+}
+
+.glow-effect {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* ========== BOUNCE EFFECTS ========== */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.bounce-animation {
+  animation: bounce 1s ease-in-out infinite;
+}
+
+/* ========== SHAKE ANIMATION (FOR ERRORS) ========== */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-8px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(8px);
+  }
+}
+
+.shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* ========== PROGRESS BAR ANIMATION ========== */
+@keyframes progressIndeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.progress-indeterminate {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-indeterminate::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: progressIndeterminate 1.5s ease-in-out infinite;
+}
+
+/* ========== HOVER LIFT EFFECT ========== */
+.hover-lift {
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+/* ========== RIPPLE EFFECT (BUTTON CLICKS) ========== */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0);
+}
+
+.ripple-effect:active::after {
+  animation: ripple 0.6s ease-out;
+}
+
+/* ========== CARD ENTRANCE STAGGER ========== */
+.stagger-item {
+  opacity: 0;
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.stagger-item:nth-child(2) { animation-delay: 0.1s; }
+.stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.stagger-item:nth-child(4) { animation-delay: 0.2s; }
+.stagger-item:nth-child(5) { animation-delay: 0.25s; }
+.stagger-item:nth-child(6) { animation-delay: 0.3s; }
+
+/* ========== FLOATING ANIMATION ========== */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ========== TYPING INDICATOR ========== */
+@keyframes typingDot {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  30% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  animation: typingDot 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* ========== SUCCESS CHECKMARK ANIMATION ========== */
+@keyframes checkmark {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.checkmark-animated {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: checkmark 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+/* ========== GRADIENT ANIMATION ========== */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-animated {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* ========== NUMBER COUNT-UP ANIMATION ========== */
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.count-up {
+  animation: countUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ========== REDUCED MOTION SUPPORT ========== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .scanner-laser-beam,
+  .radar-pulse,
+  .pulse-dot,
+  .typing-indicator span {
+    animation: none !important;
+  }
+}
+
+/* ========== TOOLTIP FADE ========== */
+@keyframes tooltipFade {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-animated {
+  animation: tooltipFade 0.2s ease-out forwards;
+}
+
+/* ========== NOTIFICATION SLIDE ========== */
+@keyframes notificationSlide {
+  from {
+    opacity: 0;
+    transform: translateX(100%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.notification-enter {
+  animation: notificationSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ========== SKELETON LOADER ========== */
+@keyframes skeletonWave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-loader {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+}
+
+.skeleton-loader::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  animation: skeletonWave 1.5s infinite;
 }

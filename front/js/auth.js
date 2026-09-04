@@ -44,7 +44,11 @@ const Auth = {
     if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
       headers['Content-Type'] = 'application/json';
     }
-    return fetch(url, { ...options, headers });
+    return fetch(url, {
+      cache: options.cache || 'no-store',
+      ...options,
+      headers
+    });
   },
 
   async restoreSession() {
@@ -54,9 +58,16 @@ const Auth = {
       return;
     }
 
+    // Restore from cache immediately so the UI is never blank during the /auth/me check.
+    const cached = localStorage.getItem(this.USER_KEY);
+    if (cached) {
+      try { this.currentUser = JSON.parse(cached); } catch (err) {}
+    }
+
     try {
       const response = await this.apiFetch('/auth/me');
       if (response.ok) {
+        // Server confirmed the token — update the cached profile.
         const user = await response.json();
         this.currentUser = {
           id: user.user_id,
@@ -67,15 +78,14 @@ const Auth = {
           createdAt: user.created_at || null
         };
         localStorage.setItem(this.USER_KEY, JSON.stringify(this.currentUser));
-      } else {
+      } else if (response.status === 401 || response.status === 403) {
+        // Token is explicitly invalid or expired — log the user out.
         this.clearSession();
       }
+      // Any other status (5xx, server restart, etc.) keeps the cached session.
     } catch (e) {
-      console.warn('Backend reachability check failed, trying cached session', e);
-      const cached = localStorage.getItem(this.USER_KEY);
-      if (cached) {
-        try { this.currentUser = JSON.parse(cached); } catch (err) {}
-      }
+      // Network error or backend not reachable — keep the cached session.
+      console.warn('Backend unreachable during session restore — using cached session.', e);
     }
   },
 
@@ -332,13 +342,15 @@ const Auth = {
       }
 
       const user = data.user;
-      if (!data.access_token) {
-        this.clearSession();
-        this.resetRoleSwitcher();
-        this.updateRoleUI();
-        this.closeAuth();
-        UI.showToast('Account created successfully. Your account is pending admin approval.', 'info');
-        return;
+    if (!data.access_token) {
+      this.clearSession();
+      this.resetRoleSwitcher();
+      this.updateRoleUI();
+      this.switchAuthTab('login');
+      const loginEmail = document.getElementById('loginEmail');
+      if (loginEmail) loginEmail.value = email;
+      UI.showToast('Account created successfully. Your account is pending admin approval.', 'info');
+      return;
       }
 
       this.currentUser = {
@@ -464,28 +476,49 @@ const Auth = {
       if (!this.isAuthenticated()) {
         show = false;
       } else if (this.currentUser.role === 'admin') {
-        show = view === 'dashboard' || view === 'analytics' || view === 'admin' || view === 'ocr-admin' || view === 'user-admin';
+        show = view === 'dashboard' || view === 'analytics' || view === 'admin' || view === 'ocr-admin' || view === 'user-admin' || view === 'chatbot';
       } else {
-        show = view === 'dashboard' || view === 'upload' || view === 'analytics' || view === 'ocr-admin';
+        show = view === 'dashboard' || view === 'upload';
       }
       link.style.display = show ? 'flex' : 'none';
     });
 
     const isAdmin = this.currentUser?.role === 'admin';
-    const ocrNavLabel = document.getElementById('ocrNavLabel');
-    if (ocrNavLabel) ocrNavLabel.textContent = isAdmin ? 'OCR Management' : 'My Invoices & Demands';
-
-    const ocrTitle = document.getElementById('ocrManagementTitle');
-    if (ocrTitle) ocrTitle.childNodes[ocrTitle.childNodes.length - 1].textContent = isAdmin ? ' OCR File Management' : ' My Invoices & Demands';
-
-    const ocrSubtitle = document.getElementById('ocrManagementSubtitle');
-    if (ocrSubtitle) ocrSubtitle.textContent = isAdmin
-      ? 'Review extracted invoice data, open the scanned file, and manage the OCR record.'
-      : 'Review your scanned invoices, correct OCR values, submit demands, and track their status.';
+    const ocrNavigation = document.getElementById('navOcrManagement');
+    if (ocrNavigation) {
+      ocrNavigation.style.display = isAdmin ? 'flex' : 'none';
+      ocrNavigation.setAttribute('aria-hidden', isAdmin ? 'false' : 'true');
+    }
 
     document.querySelectorAll('.admin-invoice-only').forEach(el => {
       el.style.display = isAdmin ? '' : 'none';
     });
+
+    document.querySelectorAll('.user-overview-stat').forEach(el => {
+      el.style.display = isAdmin ? 'none' : '';
+    });
+    document.querySelectorAll('.admin-overview-stat').forEach(el => {
+      el.style.display = isAdmin ? '' : 'none';
+    });
+    document.querySelectorAll('.user-overview-extra').forEach(el => {
+      el.style.display = 'none';
+    });
+    document.querySelectorAll('.admin-overview-content').forEach(el => {
+      el.style.display = isAdmin ? '' : 'none';
+    });
+    document.querySelectorAll('.user-overview-content').forEach(el => {
+      el.style.display = isAdmin ? 'none' : '';
+    });
+
+    const heroUploadBtn = document.getElementById('heroUploadBtn');
+    if (heroUploadBtn) {
+      heroUploadBtn.style.display = isAdmin ? 'none' : 'inline-flex';
+    }
+
+    const heroAnalyticsBtn = document.getElementById('heroAnalyticsBtn');
+    if (heroAnalyticsBtn) {
+      heroAnalyticsBtn.style.display = isAdmin ? 'none' : 'inline-flex';
+    }
 
     if (!this.isAuthenticated()) {
       this.openAuth();

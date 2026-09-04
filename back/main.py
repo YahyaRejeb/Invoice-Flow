@@ -1,4 +1,4 @@
-"""STEG Facture Processing Platform - FastAPI backend entry point.
+"""InvoiceFlow Facture Processing Platform - FastAPI backend entry point.
 
 Serves the REST API under /api routes (/auth, /invoices, /demands, /admin, ...)
 AND the static frontend (index.html + assets) at the root, so the whole
@@ -18,11 +18,11 @@ from fastapi.staticfiles import StaticFiles
 from config import PROJECT_DIR, UPLOADS_DIR, settings
 from database import SessionLocal, init_db
 from database import get_db  # noqa: F401  (exported for convenience)
-from routers import admin, auth, dashboard, demands, invoices
+from routers import admin, analytics, auth, chatbot, dashboard, demands, invoices
 from seed import seed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("steg")
+logger = logging.getLogger("invoiceflow")
 
 
 @asynccontextmanager
@@ -35,7 +35,7 @@ async def lifespan(_app: FastAPI):
         finally:
             db.close()
     else:
-        logger.info("Seeding disabled (STEG_SEED=0)")
+        logger.info("Seeding disabled (INVOICEFLOW_SEED=0)")
     yield
 
 
@@ -62,11 +62,13 @@ app.include_router(invoices.router)
 app.include_router(demands.router)
 app.include_router(admin.router)
 app.include_router(dashboard.router)
+app.include_router(analytics.router)
+app.include_router(chatbot.router)
 
 
 @app.get("/health", tags=["system"])
 def health():
-    return {"status": "ok", "service": "steg-backend", "version": app.version}
+    return {"status": "ok", "service": "invoiceflow-backend", "version": app.version}
 
 
 # ---- Static frontend ----

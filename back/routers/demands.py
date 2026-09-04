@@ -23,7 +23,7 @@ def _my_demand_out(demand: Demand) -> MyDemandOut:
         invoice_id=demand.invoice_id,
         invoice_no=invoice.invoice_no,
         supplier=invoice.supplier,
-        amount_incl_tax=invoice.amount_incl_tax,
+        net_a_payer=invoice.net_a_payer,
         status=demand.status,
         submitted_at=demand.submitted_at,
     )

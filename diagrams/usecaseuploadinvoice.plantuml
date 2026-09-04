@@ -1,0 +1,71 @@
+@startuml
+
+allowmixing
+top to bottom direction
+
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+actor User
+
+class UI_UploadInvoice <<Boundary>> {
+    pdf_file : PDF
+    upload_status : String
+
+    choosePDFFile()
+    uploadPDFInvoice()
+    displayUploadStatus(message : String)
+}
+
+class C_UploadInvoice <<Control>> {
+    uploadInvoiceFile(file_path)
+    extractInvoiceData(file_path)
+    saveInvoice()
+}
+
+package Models {
+    class Invoices <<Entity>> {
+        invoice_id : int
+        user_id : int
+        file_path : String
+        supplier : String
+        invoice_no : String
+        invoice_date : Date
+        amount_excl_tax : float
+        currency : String
+        status : String
+        uploaded_at : Date
+        address : String
+        consumption_jour : int
+        consumption_pointe : int
+        consumption_soiree : int
+        consumption_nuit : int
+        pu_jour : float
+        pu_pointe : float
+        pu_soiree : float
+        pu_nuit : float
+        montant_jour : float
+        montant_pointe : float
+        montant_soiree : float
+        montant_nuit : float
+        sous_total : float
+        total_1 : float
+        total_2 : float
+        total_3 : float
+        kwh_consumed : int
+        net_a_payer : float
+
+        insert()
+    }
+}
+
+User --> UI_UploadInvoice
+UI_UploadInvoice --> C_UploadInvoice
+C_UploadInvoice --> Invoices : creates
+
+UI_UploadInvoice -[hidden]down-> Models
+C_UploadInvoice -[hidden]down-> Models
+UI_UploadInvoice -[hidden]right-> C_UploadInvoice
+
+@enduml

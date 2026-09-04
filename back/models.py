@@ -49,8 +49,8 @@ class User(Base):
 class Invoice(Base):
     """One row per uploaded facture, tracking raw file + validated values.
 
-    Maps to the existing [Invoices] table in StegDB. ``kwh_consumed`` and
-    ``due_date`` are added by the backend's additive migration.
+    Maps to the existing [Invoices] table in StegDB. ``kwh_consumed`` is added
+    by the backend's additive migration.
     """
 
     __tablename__ = "Invoices"
@@ -67,13 +67,10 @@ class Invoice(Base):
     invoice_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
     invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     amount_excl_tax: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
-    tva: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
-    amount_incl_tax: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
     currency: Mapped[str] = mapped_column(
         String(10), nullable=False, server_default=text("'TND'")
     )
     kwh_consumed: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(
         String(30), nullable=False, server_default=text("'uploaded'"), index=True
     )

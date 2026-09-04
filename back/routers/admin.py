@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -36,7 +36,7 @@ def _admin_demand_out(demand: Demand) -> AdminDemandOut:
         invoice_id=demand.invoice_id,
         invoice_no=invoice.invoice_no,
         supplier=invoice.supplier,
-        amount_incl_tax=invoice.amount_incl_tax,
+        net_a_payer=invoice.net_a_payer,
         status=demand.status,
         submitted_at=demand.submitted_at,
         user_id=demand.user_id,
@@ -85,18 +85,23 @@ def admin_review_demand(
     )
     if demand is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demand not found")
+    if demand.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Demand already reviewed (status={demand.status})",
+        )
 
     old_status = demand.status
     demand.status = decision.status
     demand.reviewed_by_admin_id = admin.user_id
-    demand.reviewed_at = datetime.now()
-    demand.invoice.status = decision.status
+    demand.reviewed_at = datetime.now(timezone.utc)
+    demand.invoice.status = "approved" if decision.status == "approved" else "rejected"
 
     create_audit_log(
         db,
         demand=demand,
         actor_id=admin.user_id,
-        action="APPROVED_DEMAND" if decision.status in ("approved", "validated") else "REJECTED_DEMAND",
+        action="APPROVED_DEMAND" if decision.status == "approved" else "REJECTED_DEMAND",
         field_changed="status",
         old_value=old_status,
         new_value=decision.status,
@@ -117,7 +122,7 @@ def admin_audit_logs(db: DbDep, admin: User = Depends(require_admin)):
 @router.get("/users", response_model=list[AdminUserOut])
 def admin_list_users(db: DbDep, admin: User = Depends(require_admin)):
     """List all non-admin users for admin management.
-
+ 
     Administrator accounts are intentionally excluded from the user manager
     so they cannot be acted upon from this view.
     """
@@ -145,7 +150,6 @@ def admin_create_user(
         password_hash=hash_password(payload.password),
         role=payload.role,
         account_status=payload.account_status,
-        created_at=datetime.now(),
     )
     db.add(user)
     db.commit()
@@ -221,34 +225,18 @@ def admin_list_invoices(db: DbDep, admin: User = Depends(require_admin)):
     """List all invoices for admin management."""
     invoices = db.scalars(
         select(Invoice)
-        .options(selectinload(Invoice.demand))
+        .options(selectinload(Invoice.demand), selectinload(Invoice.owner))
         .order_by(Invoice.uploaded_at.desc())
     ).all()
-    return [
-        InvoiceOut(
-            invoice_id=invoice.invoice_id,
-            user_id=invoice.user_id,
-            file_name=invoice.file_name,
-            file_path=invoice.file_path,
-            supplier=invoice.supplier,
-            address=invoice.address,
-            invoice_no=invoice.invoice_no,
-            invoice_date=invoice.invoice_date,
-            amount_excl_tax=invoice.amount_excl_tax,
-            tva=invoice.tva,
-            amount_incl_tax=invoice.amount_incl_tax,
-            currency=invoice.currency,
-            kwh_consumed=invoice.kwh_consumed,
-            due_date=invoice.due_date,
-            status=invoice.status,
-            uploaded_at=invoice.uploaded_at,
-            demand_id=invoice.demand.demand_id if invoice.demand is not None else None,
-            demand_status=invoice.demand.status if invoice.demand is not None else None,
-            user_name=invoice.owner.full_name if invoice.owner is not None else None,
-            user_email=invoice.owner.email if invoice.owner is not None else None,
-        )
-        for invoice in invoices
-    ]
+    serialised: list[InvoiceOut] = []
+    for invoice in invoices:
+        item = InvoiceOut.model_validate(invoice)
+        item.demand_id = invoice.demand.demand_id if invoice.demand is not None else None
+        item.demand_status = invoice.demand.status if invoice.demand is not None else None
+        item.user_name = invoice.owner.full_name if invoice.owner is not None else None
+        item.user_email = invoice.owner.email if invoice.owner is not None else None
+        serialised.append(item)
+    return serialised
 
 
 @router.post("/invoices", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED)
@@ -270,39 +258,36 @@ def admin_create_invoice(
         invoice_no=payload.invoice_no,
         invoice_date=payload.invoice_date,
         amount_excl_tax=payload.amount_excl_tax,
-        tva=payload.tva,
-        amount_incl_tax=payload.amount_incl_tax,
         currency=payload.currency,
         kwh_consumed=payload.kwh_consumed,
-        due_date=payload.due_date,
         status=payload.status,
-        uploaded_at=datetime.now(),
+        net_a_payer=payload.net_a_payer,
+        consumption_jour=payload.consumption_jour,
+        consumption_pointe=payload.consumption_pointe,
+        consumption_soiree=payload.consumption_soiree,
+        consumption_nuit=payload.consumption_nuit,
+        pu_jour=payload.pu_jour,
+        pu_pointe=payload.pu_pointe,
+        pu_soiree=payload.pu_soiree,
+        pu_nuit=payload.pu_nuit,
+        montant_jour=payload.montant_jour,
+        montant_pointe=payload.montant_pointe,
+        montant_soiree=payload.montant_soiree,
+        montant_nuit=payload.montant_nuit,
+        sous_total=payload.sous_total,
+        total_1=payload.total_1,
+        total_2=payload.total_2,
+        total_3=payload.total_3,
     )
     db.add(invoice)
     db.commit()
     db.refresh(invoice)
-    return InvoiceOut(
-        invoice_id=invoice.invoice_id,
-        user_id=invoice.user_id,
-        file_name=invoice.file_name,
-        file_path=invoice.file_path,
-        supplier=invoice.supplier,
-        address=invoice.address,
-        invoice_no=invoice.invoice_no,
-        invoice_date=invoice.invoice_date,
-        amount_excl_tax=invoice.amount_excl_tax,
-        tva=invoice.tva,
-        amount_incl_tax=invoice.amount_incl_tax,
-        currency=invoice.currency,
-        kwh_consumed=invoice.kwh_consumed,
-        due_date=invoice.due_date,
-        status=invoice.status,
-        uploaded_at=invoice.uploaded_at,
-        demand_id=None,
-        demand_status=None,
-        user_name=invoice.owner.full_name if invoice.owner is not None else None,
-        user_email=invoice.owner.email if invoice.owner is not None else None,
-    )
+    item = InvoiceOut.model_validate(invoice)
+    item.demand_id = invoice.demand.demand_id if invoice.demand is not None else None
+    item.demand_status = invoice.demand.status if invoice.demand is not None else None
+    item.user_name = invoice.owner.full_name if invoice.owner is not None else None
+    item.user_email = invoice.owner.email if invoice.owner is not None else None
+    return item
 
 
 @router.patch("/invoices/{invoice_id}", response_model=InvoiceOut)
@@ -313,7 +298,11 @@ def admin_update_invoice(
     admin: User = Depends(require_admin),
 ):
     """Update an invoice record from the admin panel."""
-    invoice = db.scalar(select(Invoice).options(selectinload(Invoice.demand)).where(Invoice.invoice_id == invoice_id))
+    invoice = db.scalar(
+        select(Invoice)
+        .options(selectinload(Invoice.demand), selectinload(Invoice.owner))
+        .where(Invoice.invoice_id == invoice_id)
+    )
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
 
@@ -324,28 +313,12 @@ def admin_update_invoice(
 
     db.commit()
     db.refresh(invoice)
-    return InvoiceOut(
-        invoice_id=invoice.invoice_id,
-        user_id=invoice.user_id,
-        file_name=invoice.file_name,
-        file_path=invoice.file_path,
-        supplier=invoice.supplier,
-        address=invoice.address,
-        invoice_no=invoice.invoice_no,
-        invoice_date=invoice.invoice_date,
-        amount_excl_tax=invoice.amount_excl_tax,
-        tva=invoice.tva,
-        amount_incl_tax=invoice.amount_incl_tax,
-        currency=invoice.currency,
-        kwh_consumed=invoice.kwh_consumed,
-        due_date=invoice.due_date,
-        status=invoice.status,
-        uploaded_at=invoice.uploaded_at,
-        demand_id=invoice.demand.demand_id if invoice.demand is not None else None,
-        demand_status=invoice.demand.status if invoice.demand is not None else None,
-        user_name=invoice.owner.full_name if invoice.owner is not None else None,
-        user_email=invoice.owner.email if invoice.owner is not None else None,
-    )
+    item = InvoiceOut.model_validate(invoice)
+    item.demand_id = invoice.demand.demand_id if invoice.demand is not None else None
+    item.demand_status = invoice.demand.status if invoice.demand is not None else None
+    item.user_name = invoice.owner.full_name if invoice.owner is not None else None
+    item.user_email = invoice.owner.email if invoice.owner is not None else None
+    return item
 
 
 @router.delete("/invoices/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)

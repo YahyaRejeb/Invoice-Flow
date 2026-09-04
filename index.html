@@ -4,11 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STEG AI — Facture Processing & Analytics Portal</title>
+  <title>InvoiceFlow — Facture Processing & Analytics Portal</title>
 
   <!-- SEO & Meta -->
   <meta name="description"
-    content="Next-Generation STEG Electricity & Gas Facture Automated OCR Extraction, Verification & Power BI Analytics Platform.">
+    content="Next-Generation InvoiceFlow Electricity & Gas Facture Automated OCR Extraction, Verification & Power BI Analytics Platform.">
 
   <!-- Google Fonts: Outfit (Headings), Plus Jakarta Sans (Body), Fira Code (Data) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,9 +19,6 @@
 
   <!-- Font Awesome 6 Pro / Free SVG Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Design System & Component Stylesheets -->
   <link rel="stylesheet" href="front/css/variables.css?v=20260818-address">
@@ -48,7 +45,7 @@
           <i class="fa-solid fa-bolt-lightning"></i>
         </div>
         <div class="sidebar-brand-meta">
-          <div class="sidebar-brand-title">STEG <span class="neon-text">INTELLIGENCE</span></div>
+          <div class="sidebar-brand-title">InvoiceFlow <span class="neon-text">AI</span></div>
           <div class="sidebar-brand-sub">ENTERPRISE OCR PLATFORM</div>
         </div>
       </div>
@@ -68,32 +65,29 @@
           <span class="pulse-dot"></span>
         </a>
 
-        <a href="#demands" class="nav-link user-only" data-view="demands">
-          <div class="nav-icon"><i class="fa-solid fa-rectangle-history"></i></div>
-          <span>My Demands</span>
-        </a>
-
         <a href="#admin" class="nav-link admin-only" data-view="admin" style="display: none;">
           <div class="nav-icon"><i class="fa-solid fa-shield-check"></i></div>
-          <span>Admin Review Queue</span>
-          <span class="badge badge-pending nav-count" id="navPendingCount">1</span>
+          <span>System Audit &amp; Audit Log</span>
         </a>
 
-        <a href="#ocr-admin" class="nav-link" data-view="ocr-admin">
+        <a id="navOcrManagement" href="#ocr-admin" class="nav-link admin-only" data-view="ocr-admin"
+          style="display: none;">
           <div class="nav-icon"><i class="fa-solid fa-file-lines"></i></div>
           <span>OCR Management</span>
+          <span class="badge badge-pending nav-count" id="navUntreatedDemands">0</span>
         </a>
 
         <a href="#user-admin" class="nav-link admin-only" data-view="user-admin" style="display: none;">
           <div class="nav-icon"><i class="fa-solid fa-users-gear"></i></div>
           <span>User Administration</span>
+          <span class="badge badge-pending nav-count" id="navUntreatedAccounts">0</span>
         </a>
 
-        <div class="sidebar-section-title" style="margin-top: 1.75rem;">INTELLIGENCE & BI</div>
-
-        <a href="#analytics" class="nav-link" data-view="analytics">
-          <div class="nav-icon"><i class="fa-solid fa-chart-network"></i></div>
-          <span>Power BI Analytics</span>
+        <a href="#chatbot" class="nav-link admin-only" data-view="chatbot" style="display: none;">
+          <div class="nav-icon"><i class="fa-solid fa-robot"></i></div>
+          <span>AI Admin Chatbot</span>
+          <span class="badge"
+            style="background: rgba(0, 242, 254, 0.15); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.3); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;">RAG</span>
         </a>
       </nav>
 
@@ -115,11 +109,12 @@
           <!-- Guest Auth Trigger -->
           <button id="btnAuthLogin" class="btn btn-glow-primary btn-sm" onclick="Auth.openAuth()"
             style="display: none;">
-            <i class="fa-solid fa-right-to-bracket"></i> Login / Sign Up
+            <i class="fa-solid fa-right-to-bracket"></i> Login / Create Account
           </button>
 
           <!-- Signed-In Session Pill -->
-          <button id="sessionPill" class="session-pill" type="button" onclick="Auth.openProfile()" style="display: none;">
+          <button id="sessionPill" class="session-pill" type="button" onclick="Auth.openProfile()"
+            style="display: none;">
             <div class="session-avatar-glow" id="sessionAvatar">SR</div>
             <span class="session-name" id="sessionName">Sami Rejeb</span>
             <span class="btn-glass-icon btn-session-logout" title="Open account profile">
@@ -139,109 +134,217 @@
         <!-- ================= VIEW 1: OVERVIEW DASHBOARD ================= -->
         <section id="view-dashboard" class="view-section">
 
-          <!-- Hero Banner Header -->
-          <div class="hero-welcome-card animate-hero" style="margin-bottom: 2rem;">
-            <div>
-              <h1 class="hero-title">Welcome back, <span class="gradient-text" id="heroUserGreeting">Sami Rejeb</span>
-                👋</h1>
-              <p class="hero-subtitle">Automated STEG billing extraction system. Upload your electricity & gas bills for
-                real-time OCR validation and analytics.</p>
+          <!-- Modern Hero Banner with Enhanced Visual Hierarchy -->
+          <div class="hero-welcome-card animate-hero" style="margin-bottom: 3rem;">
+            <div style="flex: 1;">
+              <div
+                style="display: inline-flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1.25rem; background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.2); border-radius: var(--radius-full); margin-bottom: 1.25rem;">
+                <i class="fa-solid fa-sparkles" style="color: var(--accent-cyan); font-size: 0.9rem;"></i>
+                <span
+                  style="font-size: 0.8rem; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 0.05em;">AI-Powered
+                  OCR Platform</span>
+              </div>
+              <h1 class="hero-title" style="font-size: 2.25rem; margin-bottom: 0.75rem;">
+                Welcome back, <span class="gradient-text" id="heroUserGreeting">Sami Rejeb</span> 👋
+              </h1>
+              <p class="hero-subtitle" style="font-size: 1.05rem; line-height: 1.7; max-width: 680px;">
+                Streamline your electricity & gas invoice processing with intelligent OCR extraction, real-time
+                validation, and comprehensive analytics.
+              </p>
+              <div style="display: flex; gap: 1rem; margin-top: 1.75rem; align-items: center;">
+                <button id="heroUploadBtn" class="btn btn-glow-primary btn-lg" onclick="App.switchView('upload')"
+                  style="gap: 0.75rem;">
+                  <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.1rem;"></i>
+                  <span>Upload New Invoice</span>
+                </button>
+                <button id="heroAnalyticsBtn" class="btn btn-secondary" onclick="App.switchView('analytics')"
+                  style="gap: 0.65rem;">
+                  <i class="fa-solid fa-chart-line"></i>
+                  <span>View Analytics</span>
+                </button>
+              </div>
             </div>
-            <button class="btn btn-glow-primary btn-lg" onclick="App.switchView('upload')">
-              <i class="fa-solid fa-sparkles"></i> Upload New Facture
-            </button>
+            <div
+              style="position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; padding: 1.5rem;">
+              <div
+                style="width: 180px; height: 180px; background: var(--gradient-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 60px rgba(14, 165, 233, 0.4); position: relative;">
+                <i class="fa-solid fa-file-invoice" style="font-size: 5rem; color: white; opacity: 0.9;"></i>
+                <div
+                  style="position: absolute; inset: -10px; border: 3px solid rgba(14, 165, 233, 0.3); border-radius: 50%; animation: pulse 3s ease-in-out infinite;">
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Stat Cards Row -->
-          <div class="grid-cols-4" style="margin-bottom: 2rem;">
+          <!-- Enhanced Stat Cards with Modern Design -->
+          <div class="grid-cols-4" style="margin-bottom: 3rem; gap: 1.25rem;">
 
-            <div class="glass-card stat-card-glow cyan-glow">
+            <div class="glass-card stat-card-glow cyan-glow user-overview-stat"
+              style="border-left: 4px solid var(--accent-cyan);">
               <div class="stat-header">
-                <div class="stat-icon-wrap cyan">
+                <div class="stat-icon-wrap cyan" style="width: 58px; height: 58px; font-size: 1.6rem;">
                   <i class="fa-solid fa-file-invoice-dollar"></i>
                 </div>
-                <span class="stat-badge-trend positive">+12% this month</span>
+                <span class="stat-badge-trend positive" style="font-size: 0.7rem; padding: 0.35rem 0.8rem;">
+                  <i class="fa-solid fa-arrow-trend-up" style="font-size: 0.65rem;"></i> +12%
+                </span>
               </div>
-              <div class="stat-value" id="statTotalFactures">0</div>
-              <div class="stat-label">Total Uploaded Factures</div>
+              <div class="stat-value" id="statTotalFactures"
+                style="background: linear-gradient(135deg, var(--accent-cyan), var(--accent-primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                0</div>
+              <div class="stat-label" style="font-size: 0.95rem; font-weight: 600;">Total Invoices</div>
+              <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-dim);">
+                <i class="fa-solid fa-calendar"></i> This month
+              </div>
             </div>
 
-            <div class="glass-card stat-card-glow amber-glow">
+            <div class="glass-card stat-card-glow amber-glow user-overview-stat"
+              style="border-left: 4px solid var(--accent-amber);">
               <div class="stat-header">
-                <div class="stat-icon-wrap amber">
-                  <i class="fa-solid fa-clock"></i>
+                <div class="stat-icon-wrap amber" style="width: 58px; height: 58px; font-size: 1.6rem;">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
                 </div>
-                <span class="stat-badge-trend warning">Action Required</span>
+                <span class="stat-badge-trend warning" style="font-size: 0.7rem; padding: 0.35rem 0.8rem;">
+                  <i class="fa-solid fa-hourglass-half" style="font-size: 0.65rem;"></i> Pending
+                </span>
               </div>
-              <div class="stat-value" id="statPendingDemands">0</div>
-              <div class="stat-label">Pending Demands</div>
+              <div class="stat-value" id="statPendingDemands" style="color: var(--accent-amber);">0</div>
+              <div class="stat-label" style="font-size: 0.95rem; font-weight: 600;">Awaiting Review</div>
+              <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-dim);">
+                <i class="fa-solid fa-circle-exclamation"></i> Action required
+              </div>
             </div>
 
-            <div class="glass-card stat-card-glow emerald-glow">
+            <div class="glass-card stat-card-glow emerald-glow user-overview-extra"
+              style="display:none; border-left: 4px solid var(--accent-emerald);">
               <div class="stat-header">
-                <div class="stat-icon-wrap emerald">
-                  <i class="fa-solid fa-badge-check"></i>
+                <div class="stat-icon-wrap emerald" style="width: 58px; height: 58px; font-size: 1.6rem;">
+                  <i class="fa-solid fa-circle-check"></i>
                 </div>
-                <span class="stat-badge-trend success">100% Verified</span>
+                <span class="stat-badge-trend success" style="font-size: 0.7rem; padding: 0.35rem 0.8rem;">
+                  <i class="fa-solid fa-check-double" style="font-size: 0.65rem;"></i> 100%
+                </span>
               </div>
-              <div class="stat-value" id="statValidatedDemands">0</div>
-              <div class="stat-label">Validated Demands</div>
+              <div class="stat-value" id="statValidatedDemands" style="color: var(--accent-emerald);">0</div>
+              <div class="stat-label" style="font-size: 0.95rem; font-weight: 600;">Validated</div>
+              <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-dim);">
+                <i class="fa-solid fa-badge-check"></i> Fully verified
+              </div>
             </div>
 
-            <div class="glass-card stat-card-glow indigo-glow">
+            <div class="glass-card stat-card-glow indigo-glow user-overview-extra"
+              style="display:none; border-left: 4px solid var(--accent-violet);">
               <div class="stat-header">
-                <div class="stat-icon-wrap indigo">
+                <div class="stat-icon-wrap indigo" style="width: 58px; height: 58px; font-size: 1.6rem;">
                   <i class="fa-solid fa-bolt"></i>
                 </div>
-                <span class="stat-badge-trend info">Normal Load</span>
+                <span class="stat-badge-trend info" style="font-size: 0.7rem; padding: 0.35rem 0.8rem;">
+                  <i class="fa-solid fa-chart-simple" style="font-size: 0.65rem;"></i> Average
+                </span>
               </div>
-              <div class="stat-value" id="statTotalKwh" style="font-size: 1.6rem;">0 kWh</div>
-              <div class="stat-label">Total Energy Consumed</div>
+              <div class="stat-value" id="statTotalKwh" style="font-size: 1.8rem; color: var(--accent-violet);">0 kWh
+              </div>
+              <div class="stat-label" style="font-size: 0.95rem; font-weight: 600;">Energy Consumption</div>
+              <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-dim);">
+                <i class="fa-solid fa-plug"></i> Total usage
+              </div>
+            </div>
+
+            <div class="glass-card stat-card-glow amber-glow admin-overview-stat" style="display:none;">
+              <div class="stat-header">
+                <div class="stat-icon-wrap amber"><i class="fa-solid fa-file-circle-exclamation"></i></div>
+                <span class="stat-badge-trend warning">OCR Management</span>
+              </div>
+              <div class="stat-value" id="statUntreatedDemands">0</div>
+              <div class="stat-label">Untreated Demands</div>
+            </div>
+
+            <div class="glass-card stat-card-glow cyan-glow admin-overview-stat" style="display:none;">
+              <div class="stat-header">
+                <div class="stat-icon-wrap cyan"><i class="fa-solid fa-user-clock"></i></div>
+                <span class="stat-badge-trend info">User Management</span>
+              </div>
+              <div class="stat-value" id="statUntreatedAccounts">0</div>
+              <div class="stat-label">Untreated Accounts</div>
             </div>
 
           </div>
 
-          <!-- Charts Grid Row -->
-          <div class="grid-cols-2" style="margin-bottom: 2rem;">
-            <div class="glass-card chart-container-card">
-              <div class="card-header-flex">
-                <div>
-                  <h3 class="card-title"><i class="fa-solid fa-chart-column text-cyan"></i> Energy Consumption History
-                  </h3>
-                  <p class="card-sub">Kilowatt-hour (kWh) progression across billing cycles</p>
-                </div>
-                <span class="badge badge-neon">kWh / Period</span>
-              </div>
-              <div class="chart-canvas-wrapper">
-                <canvas id="kwhConsumptionChart"></canvas>
-              </div>
-            </div>
-
-            <div class="glass-card chart-container-card">
-              <div class="card-header-flex">
-                <div>
-                  <h3 class="card-title"><i class="fa-solid fa-chart-pie text-indigo"></i> Financial Cost Allocation
-                  </h3>
-                  <p class="card-sub">Distribution of Electricity, Fixed Rates & TVA Tax</p>
-                </div>
-                <span class="badge badge-validated">Current Invoice</span>
-              </div>
-              <div class="chart-canvas-wrapper">
-                <canvas id="costDistributionChart"></canvas>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recent Factures Data Table Card -->
-          <div class="glass-card table-card-container">
-            <div class="card-header-flex">
+          <!-- Admin Power BI Analytics Dashboard (Rendered in Admin Overview) -->
+          <div class="admin-overview-content glass-card"
+            style="display: none; padding: 1.5rem; margin-bottom: 2.5rem; border-radius: var(--radius-xl);">
+            <div class="flex-between" style="flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
               <div>
-                <h3 class="card-title"><i class="fa-solid fa-table-list text-cyan"></i> Factures & Demands Directory
+                <h3 class="card-title" style="display: flex; align-items: center; gap: 0.75rem; font-size: 1.35rem;">
+                  <i class="fa-solid fa-chart-network text-cyan"></i>
+                  <span>Power BI Analytics Dashboard</span>
                 </h3>
-                <p class="card-sub">Live status tracking of uploaded bills, OCR validations, and admin decisions.</p>
+                <p class="card-sub" style="margin-top: 0.25rem;">
+                  Live consumption intelligence & system analytics — use interactive filters inside the report.
+                </p>
               </div>
-              <button class="btn btn-primary btn-sm" onclick="App.switchView('upload')">
-                <i class="fa-solid fa-plus"></i> New Upload
+              <div style="display:flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <span class="badge badge-validated">
+                  <i class="fa-solid fa-circle-dot"></i> Live Report
+                </span>
+                <button id="pbiFullscreenBtn" class="btn btn-secondary btn-sm" onclick="Analytics.toggleFullscreen()"
+                  title="Fullscreen">
+                  <i class="fa-solid fa-expand"></i> Fullscreen
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="Analytics.reload()" title="Refresh">
+                  <i class="fa-solid fa-rotate-right"></i> Refresh
+                </button>
+              </div>
+            </div>
+
+            <!-- Embed container -->
+            <div id="pbiContainer"
+              style="position: relative; border-radius: 1rem; overflow: hidden; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+              <!-- Loading spinner -->
+              <div id="pbiLoading"
+                style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:600px; gap: 1rem;">
+                <i class="fa-solid fa-chart-column text-cyan"
+                  style="font-size: 2.5rem; animation: pulse 1.5s ease-in-out infinite;"></i>
+                <p style="color: var(--text-dim); font-size: 0.95rem;">Loading Power BI report…</p>
+              </div>
+
+              <!-- Setup instructions (shown when POWERBI_EMBED_URL is not set) -->
+              <div id="pbiSetupCard"
+                style="display:none; flex-direction:column; align-items:center; justify-content:center; gap: 1.5rem; padding: 3rem 2rem; text-align:center; min-height: 450px;">
+                <i class="fa-brands fa-microsoft" style="font-size: 3rem; color: #f2c811;"></i>
+                <h4 style="color: var(--text-main); margin: 0; font-size: 1.3rem;">Connect Your Power BI Report</h4>
+                <p style="color: var(--text-dim); max-width: 520px; line-height: 1.7;">
+                  To embed your Power BI dashboard here, set <code
+                    style="background:rgba(255,255,255,0.1); padding: 2px 6px; border-radius:4px;">POWERBI_EMBED_URL</code>
+                  in backend config or env.
+                </p>
+              </div>
+
+              <!-- Power BI iframe — src injected by analytics.js -->
+              <iframe id="powerBiFrame" style="display:none; width:100%; height:650px; border:none;" allowfullscreen
+                allow="fullscreen" title="Power BI Analytics Dashboard">
+              </iframe>
+            </div>
+          </div>
+
+          <!-- Modern Data Table with Enhanced Header -->
+          <div class="glass-card table-card-container user-overview-content"
+            style="padding: 2.5rem; border-radius: var(--radius-xl);">
+            <div class="card-header-flex" style="margin-bottom: 2rem;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 0.5rem;">
+                  <div
+                    style="width: 40px; height: 40px; background: rgba(14, 165, 233, 0.15); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--accent-cyan);">
+                    <i class="fa-solid fa-table-list" style="font-size: 1.2rem;"></i>
+                  </div>
+                  <h3 class="card-title" style="margin: 0; font-size: 1.35rem;">Invoice Directory</h3>
+                </div>
+                <p class="card-sub" style="font-size: 0.9rem; margin-left: 55px;">Real-time tracking of all invoices
+                  with OCR validation and workflow status</p>
+              </div>
+              <button class="btn btn-glow-primary btn-sm" onclick="App.switchView('upload')"
+                style="height: 44px; padding: 0 1.5rem;">
+                <i class="fa-solid fa-plus-circle"></i> Upload Invoice
               </button>
             </div>
 
@@ -253,7 +356,6 @@
                     <th>Billing Period</th>
                     <th>Consumption</th>
                     <th>Total Amount</th>
-                    <th>Due Date</th>
                     <th>Workflow Status</th>
                     <th style="text-align: right;">Action</th>
                   </tr>
@@ -270,33 +372,88 @@
         <!-- ================= VIEW 2: UPLOAD & OCR VERIFICATION WORKSPACE ================= -->
         <section id="view-upload" class="view-section" style="display: none;">
 
-          <!-- Dropzone Card Container -->
-          <div id="factureDropzone" class="dropzone-container-glow">
-            <input type="file" id="factureFileInput" accept=".pdf,image/*" style="display: none;">
-            <div class="dropzone-pulse-circle">
+          <!-- Modern Upload Zone with Enhanced Design -->
+          <div id="factureDropzone" class="dropzone-container-glow"
+            style="border-width: 3px; border-radius: 24px; padding: 5rem 3rem; cursor: pointer;">
+            <input type="file" id="factureFileInput" accept=".pdf,image/*" multiple style="display: none;">
+
+            <!-- Animated Icon Container -->
+            <div class="dropzone-pulse-circle"
+              style="width: 100px; height: 100px; font-size: 2.8rem; margin-bottom: 2rem; background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(37, 99, 235, 0.15)); border: 3px solid rgba(14, 165, 233, 0.3);">
               <i class="fa-solid fa-cloud-arrow-up"></i>
             </div>
-            <h2 class="dropzone-heading">Drop your STEG Facture PDF here</h2>
-            <p class="dropzone-sub">Supports native digital PDFs (text layer parsing) & scanned bill photos (Tesseract
-              OCR Engine)</p>
-            <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
-              <button class="btn btn-glow-primary btn-lg">
-                <i class="fa-solid fa-folder-open"></i> Browse PDF Document
-              </button>
+
+            <!-- Heading with Subtext -->
+            <h2 class="dropzone-heading" style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.75rem;">
+              Drag & drop your invoices here
+            </h2>
+            <p class="dropzone-sub" style="font-size: 1rem; max-width: 600px; margin: 0 auto 0.5rem auto;">
+              Upload multiple electricity & gas bills for instant AI-powered OCR extraction
+            </p>
+
+            <!-- Supported Formats Badge -->
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center;">
+              <span
+                style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.9rem; background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.2); border-radius: var(--radius-full); font-size: 0.8rem; font-weight: 600; color: var(--accent-cyan);">
+                <i class="fa-solid fa-file-pdf"></i> PDF
+              </span>
+              <span
+                style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.9rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-full); font-size: 0.8rem; font-weight: 600; color: var(--accent-emerald);">
+                <i class="fa-solid fa-image"></i> JPG / PNG
+              </span>
+              <span
+                style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.9rem; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: var(--radius-full); font-size: 0.8rem; font-weight: 600; color: var(--accent-violet);">
+                <i class="fa-solid fa-brain-circuit"></i> AI OCR
+              </span>
             </div>
+
+            <!-- Click Prompt -->
+            <div
+              style="display: inline-flex; align-items: center; gap: 0.75rem; padding: 1rem 2rem; background: var(--gradient-primary); border-radius: var(--radius-lg); color: white; font-weight: 700; font-size: 1.05rem; box-shadow: 0 4px 16px rgba(14, 165, 233, 0.35); transition: all 0.3s ease;">
+              <i class="fa-solid fa-folder-open"></i>
+              <span>Click to Browse Files</span>
+            </div>
+
+            <!-- Info Text -->
+            <p
+              style="margin-top: 2rem; font-size: 0.8rem; color: var(--text-dim); text-align: center; max-width: 500px;">
+              <i class="fa-solid fa-shield-check"></i> Secure processing with Tesseract OCR engine • Maximum 20 files •
+              10MB per file
+            </p>
           </div>
 
-          <!-- OCR Processing Progress Card -->
-          <div id="ocrProgressCard" class="glass-card ocr-progress-wrapper" style="display: none;">
-            <div class="radar-scan-container">
+          <!-- Enhanced OCR Processing Card with Modern Design -->
+          <div id="ocrProgressCard" class="glass-card ocr-progress-wrapper"
+            style="display: none; padding: 4rem 3rem; text-align: center; border-radius: 24px;">
+            <!-- Animated Radar -->
+            <div class="radar-scan-container" style="margin-bottom: 2.5rem;">
               <div class="radar-pulse"></div>
-              <i class="fa-solid fa-microchip-ai radar-icon"></i>
+              <i class="fa-solid fa-microchip-ai radar-icon" style="font-size: 3.5rem;"></i>
             </div>
-            <h3 class="progress-title">Executing Deep OCR Pipeline</h3>
-            <p id="ocrProgressStatus" class="progress-status-code">Initializing Tesseract engine...</p>
 
-            <div class="progress-track-outer">
-              <div id="ocrProgressBar" class="progress-track-inner"></div>
+            <!-- Progress Info -->
+            <div style="max-width: 480px; margin: 0 auto;">
+              <h3 class="progress-title" style="font-size: 1.6rem; margin-bottom: 1rem; font-weight: 800;">
+                AI Processing Your Invoice
+              </h3>
+              <p id="ocrProgressStatus" class="progress-status-code"
+                style="font-size: 1rem; margin-bottom: 2.5rem; font-family: var(--font-body); color: var(--text-muted);">
+                Initializing Tesseract OCR engine...
+              </p>
+
+              <!-- Modern Progress Bar -->
+              <div class="progress-track-outer" style="height: 10px; margin-bottom: 1rem;">
+                <div id="ocrProgressBar" class="progress-track-inner"></div>
+              </div>
+
+              <!-- Processing Steps -->
+              <div
+                style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-top: 1.5rem;">
+                <span><i class="fa-solid fa-circle-check" style="color: var(--accent-emerald);"></i> Upload</span>
+                <span><i class="fa-solid fa-spinner fa-spin" style="color: var(--accent-cyan);"></i> Extract</span>
+                <span><i class="fa-solid fa-circle" style="opacity: 0.3;"></i> Validate</span>
+                <span><i class="fa-solid fa-circle" style="opacity: 0.3;"></i> Complete</span>
+              </div>
             </div>
           </div>
 
@@ -308,14 +465,21 @@
               <div class="doc-viewer-topbar">
                 <div class="doc-title-tag">
                   <i id="ocrFileIcon" class="fa-solid fa-file-pdf text-cyan"></i>
-                  <span id="ocrFileNameDisplay">STEG_INVOICE_SOURCE.PDF</span>
+                  <span id="ocrFileNameDisplay">INVOICE_SOURCE.PDF</span>
                 </div>
-                <span class="badge badge-validated" id="ocrConfidenceBadge">99.4% AI Accuracy</span>
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                  <span class="badge badge-validated" id="ocrConfidenceBadge">99.4% AI Accuracy</span>
+                  <span class="badge" id="ocrTimeBadge" style="display: none; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); color: var(--accent-cyan); font-weight: 700;">
+                    <i class="fa-solid fa-stopwatch" style="margin-right: 0.35rem;"></i><span id="ocrTimeValue">0.0s</span>
+                  </span>
+                </div>
               </div>
 
               <div class="document-viewer-body">
-                <img id="ocrDocumentImage" class="document-file-preview" alt="Uploaded invoice preview" style="display: none;">
-                <iframe id="ocrDocumentPdf" class="document-file-preview" title="Uploaded invoice PDF preview" style="display: none;"></iframe>
+                <img id="ocrDocumentImage" class="document-file-preview" alt="Uploaded invoice preview"
+                  style="display: none;">
+                <iframe id="ocrDocumentPdf" class="document-file-preview" title="Uploaded invoice PDF preview"
+                  style="display: none;"></iframe>
                 <div id="ocrDocumentFallback" class="document-preview-fallback">
                   <i class="fa-solid fa-file-invoice"></i>
                   <span>Invoice preview will appear here after upload.</span>
@@ -339,7 +503,7 @@
                   <div class="form-group">
                     <label class="form-label">Supplier (Fournisseur)</label>
                     <input type="text" id="inputSupplier" class="form-control ocr-input-field" data-field="supplier"
-                      value="STEG" required>
+                      value="InvoiceFlow" required>
                   </div>
 
                   <div class="form-group">
@@ -366,74 +530,147 @@
                     </div>
                   </div>
 
-                  <div class="grid-cols-3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                  <div class="grid-cols-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                       <label class="form-label">Amount Excl. Tax (HT)</label>
                       <input type="number" step="0.001" id="inputAmountExclTax" class="form-control ocr-input-field"
                         data-field="amount_excl_tax" required>
                     </div>
-                    <div class="form-group">
-                      <label class="form-label">TVA Tax Amount</label>
-                      <input type="number" step="0.001" id="inputTva" class="form-control ocr-input-field"
-                        data-field="amount_excl_tax" required>
+                  </div>
+
+                  <!-- Tariff Breakdown (OCR Expansion) -->
+                  <div class="form-group" style="margin-top: 1rem;">
+                    <div
+                      style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem; padding-bottom:0.4rem; border-bottom:1px solid var(--border-color);">
+                      <i class="fa-solid fa-table-list" style="color:var(--accent-cyan); font-size:0.85rem;"></i>
+                      <span class="form-label" style="margin:0; font-size:0.8rem; color:var(--accent-cyan);">Tableau de
+                        Consommation (OCR)</span>
+                      <span id="tariffValidationBadge"
+                        style="margin-left:auto; font-size:0.72rem; color:var(--text-muted);"></span>
                     </div>
-                    <div class="form-group">
-                      <label class="form-label">Total Incl. Tax (TTC)</label>
-                      <input type="number" step="0.001" id="inputAmountInclTax" class="form-control ocr-input-field"
-                        data-field="amount_incl_tax" required
-                        style="font-family: var(--font-mono); font-weight:bold; color: var(--accent-emerald);">
+                    <div style="overflow-x:auto;">
+                      <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                        <thead>
+                          <tr style="color:var(--text-muted);">
+                            <th style="text-align:left; padding:0.3rem 0.4rem; font-weight:600;">Période</th>
+                            <th style="padding:0.3rem 0.4rem; font-weight:600;">Consommation (kWh)</th>
+                            <th style="padding:0.3rem 0.4rem; font-weight:600;">P.U. (millimes)</th>
+                            <th style="padding:0.3rem 0.4rem; font-weight:600;">Montant (TND)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Jour</td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="inputConsJour"
+                                class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="inputPuJour"
+                                class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0"
+                                id="inputMontantJour" class="form-control"
+                                style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);"
+                                value="0"></td>
+                          </tr>
+                          <tr>
+                            <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Pointe</td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0"
+                                id="inputConsPointe" class="form-control"
+                                style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="inputPuPointe"
+                                class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0"
+                                id="inputMontantPointe" class="form-control"
+                                style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);"
+                                value="0"></td>
+                          </tr>
+                          <tr>
+                            <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Soirée</td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0"
+                                id="inputConsSoiree" class="form-control"
+                                style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="inputPuSoiree"
+                                class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0"
+                                id="inputMontantSoiree" class="form-control"
+                                style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);"
+                                value="0"></td>
+                          </tr>
+                          <tr>
+                            <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Nuit</td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="inputConsNuit"
+                                class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="inputPuNuit"
+                                class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                            <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0"
+                                id="inputMontantNuit" class="form-control"
+                                style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);"
+                                value="0"></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div
+                      style="display:flex; justify-content:flex-end; align-items:center; gap:0.65rem; margin-top:0.65rem;">
+                      <label class="form-label" style="margin:0; font-size:0.75rem;">Total consommation (kWh)</label>
+                      <input type="number" id="inputKwhConsumed" class="form-control"
+                        style="max-width:9rem; font-size:0.85rem; font-family:var(--font-mono); font-weight:700;"
+                        value="0" readonly>
+                    </div>
+                    <!-- Summary rows -->
+                    <div
+                      style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:0.65rem; padding:0.65rem; background:rgba(0,242,254,0.04); border-radius:var(--radius-sm); border:1px solid rgba(0,242,254,0.1);">
+                      <div class="form-group" style="margin:0;">
+                        <label class="form-label" style="font-size:0.73rem;">Sous Total (TND)</label>
+                        <input type="number" step="0.001" min="0" id="inputSousTotal" class="form-control"
+                          style="font-size:0.8rem; font-family:var(--font-mono);">
+                      </div>
+                      <div class="form-group" style="margin:0;">
+                        <label class="form-label" style="font-size:0.73rem;">Total 1 (TND)</label>
+                        <input type="number" step="0.001" min="0" id="inputTotal1" class="form-control"
+                          style="font-size:0.8rem; font-family:var(--font-mono);">
+                      </div>
+                      <div class="form-group" style="margin:0;">
+                        <label class="form-label" style="font-size:0.73rem;">Total 2 (TND)</label>
+                        <input type="number" step="0.001" min="0" id="inputTotal2" class="form-control"
+                          style="font-size:0.8rem; font-family:var(--font-mono);">
+                      </div>
+                      <div class="form-group" style="margin:0;">
+                        <label class="form-label" style="font-size:0.73rem;">Total 3 / Taxes (TND)</label>
+                        <input type="number" step="0.001" min="0" id="inputTotal3" class="form-control"
+                          style="font-size:0.8rem; font-family:var(--font-mono);">
+                      </div>
+                      <div class="form-group" style="margin:0; grid-column:1/-1;">
+                        <label class="form-label" style="font-size:0.73rem; color:var(--accent-emerald);"><i
+                            class="fa-solid fa-circle-check"></i> NET À PAYER (TND)</label>
+                        <input type="number" step="0.001" min="0" id="inputNetAPayer" class="form-control"
+                          style="font-size:0.9rem; font-family:var(--font-mono); font-weight:700; color:var(--accent-emerald); border-color:rgba(52,211,153,0.3);">
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div class="form-actions-row">
-                  <button type="button" class="btn btn-secondary"
-                    onclick="document.getElementById('splitVerificationContainer').style.display='none'; document.getElementById('factureDropzone').style.display='block';">Cancel</button>
-                  <button type="submit" class="btn btn-success" id="btnConfirmOcrSave" style="flex: 2;">
-                    <i class="fa-solid fa-circle-check"></i> Confirm & Save Validated Values
-                  </button>
-                </div>
+                  <div class="form-actions-row">
+                    <button type="button" class="btn btn-secondary"
+                      onclick="document.getElementById('splitVerificationContainer').style.display='none'; document.getElementById('factureDropzone').style.display='block';">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="btnConfirmOcrSave" style="flex: 2;">
+                      <i class="fa-solid fa-circle-check"></i> Confirm & Save Validated Values
+                    </button>
+                  </div>
               </form>
             </div>
 
           </div>
 
-        </section>
-
-        <!-- ================= VIEW 3: DEMANDS HISTORY (USER) ================= -->
-        <section id="view-demands" class="view-section" style="display: none;">
-          <div class="glass-card table-card-container">
-            <div class="card-header-flex">
-              <div>
-                <h3 class="card-title"><i class="fa-solid fa-list-check text-cyan"></i> Submitted Demands Tracking</h3>
-                <p class="card-sub">Track formal administrative demands submitted to STEG administration.</p>
-              </div>
-            </div>
-
-            <div class="table-responsive">
-              <table class="custom-table">
-                <thead>
-                  <tr>
-                    <th>Demand ID</th>
-                    <th>Invoice No</th>
-                    <th>Supplier</th>
-                    <th>Amount (TTC)</th>
-                    <th>Status</th>
-                    <th>Submitted Date</th>
-                    <th style="text-align: right;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="userDemandsTableBody">
-                  <!-- Rendered dynamically -->
-                </tbody>
-              </table>
-            </div>
+          <!-- Batch Upload Results Panel -->
+          <div id="batchResultsPanel" class="glass-card"
+            style="display: none; padding: 2.5rem; margin-top: 2rem; border-radius: var(--radius-xl);">
+            <!-- Populated dynamically by showBatchResultsPanel() -->
           </div>
+
         </section>
 
-        <!-- ================= VIEW 4: ADMIN REVIEW QUEUE ================= -->
+        <!-- ================= VIEW 3: ADMIN REVIEW QUEUE ================= -->
         <section id="view-admin" class="view-section" style="display: none;">
-          <div class="glass-card table-card-container" style="margin-bottom: 2rem;">
+          <div class="glass-card table-card-container" style="margin-bottom: 2rem; display:none;"
+            id="adminDemandQueueCard" aria-hidden="true">
             <div class="card-header-flex">
               <div>
                 <h3 class="card-title text-amber"><i class="fa-solid fa-shield-exclamation"></i> Admin Pending Review
@@ -498,7 +735,8 @@
           <div class="glass-card table-card-container" style="margin-bottom: 2rem;">
             <div class="card-header-flex">
               <div>
-                <h3 class="card-title text-amber"><i class="fa-solid fa-file-invoice-dollar"></i> OCR File Management</h3>
+                <h3 class="card-title text-amber"><i class="fa-solid fa-file-invoice-dollar"></i> OCR File Management
+                </h3>
                 <p class="card-sub">Review extracted invoice data, open the scanned file, and manage the OCR record.</p>
               </div>
             </div>
@@ -511,7 +749,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Supplier</label>
-                <input type="text" id="adminInvoiceSupplier" class="form-control" value="STEG">
+                <input type="text" id="adminInvoiceSupplier" class="form-control" value="InvoiceFlow">
               </div>
               <div class="form-group">
                 <label class="form-label">Address</label>
@@ -540,12 +778,8 @@
                 <input type="number" step="0.001" id="adminInvoiceAmountExclTax" class="form-control">
               </div>
               <div class="form-group">
-                <label class="form-label">TVA Tax</label>
-                <input type="number" step="0.001" id="adminInvoiceTva" class="form-control">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Amount Incl. Tax (TTC)</label>
-                <input type="number" step="0.001" id="adminInvoiceAmount" class="form-control">
+                <label class="form-label">NET A PAYER (TTC)</label>
+                <input type="number" step="0.001" id="adminInvoiceNetAPayer" class="form-control">
               </div>
               <div class="form-group">
                 <label class="form-label">Currency</label>
@@ -556,13 +790,101 @@
                 <input type="number" step="1" min="0" id="adminInvoiceKwh" class="form-control">
               </div>
               <div class="form-group">
-                <label class="form-label">Due Date</label>
-                <input type="date" id="adminInvoiceDueDate" class="form-control">
-              </div>
-              <div class="form-group">
                 <label class="form-label">File Path</label>
                 <input type="text" id="adminInvoicePath" class="form-control" placeholder="uploads/...">
               </div>
+
+              <!-- Tariff Breakdown (Admin View) -->
+              <div class="form-group" style="grid-column: 1 / -1; margin-top: 1rem;">
+                <div
+                  style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem; padding-bottom:0.4rem; border-bottom:1px solid var(--border-color);">
+                  <i class="fa-solid fa-table-list" style="color:var(--accent-cyan); font-size:0.85rem;"></i>
+                  <span class="form-label" style="margin:0; font-size:0.8rem; color:var(--accent-cyan);">Tableau de
+                    Consommation (Tariff Breakdown)</span>
+                </div>
+                <div style="overflow-x:auto;">
+                  <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                      <tr style="color:var(--text-muted);">
+                        <th style="text-align:left; padding:0.3rem 0.4rem; font-weight:600;">Période</th>
+                        <th style="padding:0.3rem 0.4rem; font-weight:600;">Consommation (kWh)</th>
+                        <th style="padding:0.3rem 0.4rem; font-weight:600;">P.U. (millimes)</th>
+                        <th style="padding:0.3rem 0.4rem; font-weight:600;">Montant (TND)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Jour</td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="adminConsJour"
+                            class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="adminPuJour"
+                            class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0"
+                            id="adminMontantJour" class="form-control"
+                            style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);" value="0">
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Pointe</td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="adminConsPointe"
+                            class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="adminPuPointe"
+                            class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0"
+                            id="adminMontantPointe" class="form-control"
+                            style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);" value="0">
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Soirée</td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="adminConsSoiree"
+                            class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="adminPuSoiree"
+                            class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0"
+                            id="adminMontantSoiree" class="form-control"
+                            style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);" value="0">
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Nuit</td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="adminConsNuit"
+                            class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="adminPuNuit"
+                            class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                        <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0"
+                            id="adminMontantNuit" class="form-control"
+                            style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);" value="0">
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:0.65rem; padding:0.65rem; background:rgba(0,242,254,0.04); border-radius:var(--radius-sm); border:1px solid rgba(0,242,254,0.1);">
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-size:0.73rem;">Sous Total (TND)</label>
+                    <input type="number" step="0.001" min="0" id="adminSousTotal" class="form-control"
+                      style="font-size:0.8rem; font-family:var(--font-mono);">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-size:0.73rem;">Total 1 (TND)</label>
+                    <input type="number" step="0.001" min="0" id="adminTotal1" class="form-control"
+                      style="font-size:0.8rem; font-family:var(--font-mono);">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-size:0.73rem;">Total 2 (TND)</label>
+                    <input type="number" step="0.001" min="0" id="adminTotal2" class="form-control"
+                      style="font-size:0.8rem; font-family:var(--font-mono);">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-size:0.73rem;">Total 3 / Taxes (TND)</label>
+                    <input type="number" step="0.001" min="0" id="adminTotal3" class="form-control"
+                      style="font-size:0.8rem; font-family:var(--font-mono);">
+                  </div>
+                </div>
+              </div>
+
               <div style="grid-column: 1 / -1; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                 <button type="submit" class="btn btn-glow-primary">Save Invoice</button>
                 <button type="button" class="btn btn-secondary" onclick="Admin.resetInvoiceForm()">Clear</button>
@@ -594,7 +916,8 @@
             <div class="card-header-flex">
               <div>
                 <h3 class="card-title text-cyan"><i class="fa-solid fa-users-gear"></i> User Administration</h3>
-                <p class="card-sub">View every account, review verification status, and activate, reject, or ban users.</p>
+                <p class="card-sub">View every account, review verification status, and activate, reject, or ban users.
+                </p>
               </div>
             </div>
 
@@ -625,7 +948,8 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="password" id="adminUserPassword" class="form-control" placeholder="Leave blank to keep current">
+                <input type="password" id="adminUserPassword" class="form-control"
+                  placeholder="Leave blank to keep current">
               </div>
               <div style="grid-column: 1 / -1; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                 <button type="submit" class="btn btn-glow-primary">Save User</button>
@@ -652,50 +976,84 @@
           </div>
         </section>
 
-        <!-- ================= VIEW 5: POWER BI ANALYTICS ================= -->
-        <section id="view-analytics" class="view-section" style="display: none;">
-          <div class="glass-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
-            <div class="flex-between">
+        <!-- ================= VIEW 6: AI ADMIN CHATBOT (RAG DB ENGINE) ================= -->
+        <section id="view-chatbot" class="view-section" style="display: none;">
+
+          <!-- Header card -->
+          <div class="glass-card"
+            style="padding: 1.5rem; margin-bottom: 1.5rem; border-left: 4px solid var(--accent-cyan, #00f2fe);">
+            <div class="flex-between" style="flex-wrap: wrap; gap: 1rem;">
               <div>
-                <h3 class="card-title"><i class="fa-solid fa-chart-network text-cyan"></i> Power BI Embedded Consumption
-                  Intelligence</h3>
-                <p class="card-sub">SQL Server synchronized analytical reports with automated per-user Row-Level
-                  Security (RLS).</p>
+                <h3 class="card-title" style="display: flex; align-items: center; gap: 0.75rem; font-size: 1.35rem;">
+                  <i class="fa-solid fa-robot text-cyan" style="font-size: 1.5rem;"></i>
+                  <span>AI Admin Assistant &amp; RAG System</span>
+                </h3>
+                <p class="card-sub" style="margin-top: 0.25rem;">
+                  Intelligent Retrieval-Augmented Generation chatbot with direct database access for user
+                  administration, invoice stats, and system audit logs.
+                </p>
               </div>
-              <span class="badge badge-validated"><i class="fa-solid fa-database"></i> SQL Server Connected</span>
+              <div style="display:flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <span id="chatbotEngineStatus" class="badge badge-validated"
+                  style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                  <i class="fa-solid fa-database"></i> DB RAG Active
+                </span>
+                <button class="btn btn-secondary btn-sm" onclick="Chatbot.clearChat()" title="Clear Chat History">
+                  <i class="fa-solid fa-trash-can"></i> Clear History
+                </button>
+              </div>
             </div>
           </div>
 
-          <!-- Embedded Power BI Mock Container -->
-          <div class="powerbi-embedded-frame">
-            <div class="pbi-header">
-              <div class="pbi-title">
-                <i class="fa-solid fa-bolt text-amber"></i> POWER BI SERVICE — CONSUMPTION REPORT DASHBOARD
-              </div>
-              <div class="pbi-meta">
-                DATASET: StegDB.dbo.Invoices | RLS FILTER: user_id = 'user_101'
-              </div>
+          <!-- Main Chatbot Container -->
+          <div class="glass-card chatbot-shell"
+            style="padding: 0; display: flex; flex-direction: column; height: 680px; overflow: hidden; position: relative;">
+
+            <!-- Chat Messages Display Area -->
+            <div id="chatMessages"
+              style="flex: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.25rem; scroll-behavior: smooth;">
+              <!-- Injected via Chatbot.js -->
             </div>
 
-            <div class="pbi-widgets-grid">
-              <div class="pbi-widget-card">
-                <i class="fa-solid fa-gauge-high pbi-icon text-cyan"></i>
-                <div class="pbi-metric-title">Peak Usage Month</div>
-                <div class="pbi-metric-sub">Summer Period (June – August)</div>
-                <div class="pbi-metric-num text-cyan">+24.5% kWh</div>
-              </div>
-
-              <div class="pbi-widget-card">
-                <i class="fa-solid fa-coins pbi-icon text-amber"></i>
-                <div class="pbi-metric-title">Annual Expenditure Projection</div>
-                <div class="pbi-metric-sub">Estimated Total 2026</div>
-                <div class="pbi-metric-num text-amber">1,850.450 TND</div>
-              </div>
+            <!-- Quick Suggestions Pills Bar -->
+            <div
+              style="padding: 0.6rem 1.25rem; background: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.05); display: flex; gap: 0.5rem; overflow-x: auto; align-items: center; scrollbar-width: none;">
+              <span style="font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; font-weight: 600;">
+                <i class="fa-solid fa-bolt text-cyan"></i> Quick Prompts:
+              </span>
+              <button type="button" class="chat-preset-btn"
+                onclick="Chatbot.sendPreset('List all registered users with their details and roles')">
+                👥 List all users
+              </button>
+              <button type="button" class="chat-preset-btn"
+                onclick="Chatbot.sendPreset('Show user account status summary and pending accounts')">
+                📊 User Status Summary
+              </button>
+              <button type="button" class="chat-preset-btn"
+                onclick="Chatbot.sendPreset('Give me invoice processing statistics and total consumption')">
+                ⚡ Invoice Statistics
+              </button>
+              <button type="button" class="chat-preset-btn"
+                onclick="Chatbot.sendPreset('Show admin informations and system logs')">
+                🛡️ Admin informations
+              </button>
             </div>
 
-            <div class="pbi-footer">
-              Active Power BI Embedded Session ID: 994a20b-steg-2026-prod
-            </div>
+            <!-- Input Bar -->
+            <form id="chatForm" onsubmit="Chatbot.handleSubmit(event)"
+              style="padding: 1rem 1.25rem; background: rgba(0, 0, 0, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; gap: 0.75rem; align-items: center;">
+              <div style="position: relative; flex: 1;">
+                <input type="text" id="chatInput" class="form-control"
+                  placeholder="Ask any question about users, invoices, demands, or system state..." autocomplete="off"
+                  style="width: 100%; padding-right: 2.5rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-main); border-radius: 0.75rem; font-size: 0.95rem; height: 46px;" />
+              </div>
+              <button type="submit" id="btnSendChat" class="btn btn-glow-primary"
+                style="height: 46px; padding: 0 1.5rem; border-radius: 0.75rem; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                <span>Send</span>
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </form>
+
           </div>
         </section>
 
@@ -733,7 +1091,8 @@
       </div>
       <div class="modal-body">
         <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 1rem;">
-          <i class="fa-solid fa-info-circle text-cyan"></i> Editing a facture with a submitted demand will reset its status to <strong>Pending Admin Review</strong> so the admin can re-validate your changes.
+          <i class="fa-solid fa-info-circle text-cyan"></i> Editing a facture with a submitted demand will reset its
+          status to <strong>Pending Admin Review</strong> so the admin can re-validate your changes.
         </p>
         <form id="userEditInvoiceForm" onsubmit="Dashboard.saveInvoiceEdit(event)">
           <input type="hidden" id="editInvoiceId">
@@ -755,29 +1114,116 @@
               <input type="date" id="editInvoiceDate" class="form-control" required>
             </div>
             <div class="form-group">
-              <label class="form-label">Due Date</label>
-              <input type="date" id="editDueDate" class="form-control">
+              <label class="form-label">Uploaded At</label>
+              <input type="text" id="editUploadedAt" class="form-control" readonly>
             </div>
             <div class="form-group">
               <label class="form-label">Amount Excl. Tax (HT)</label>
               <input type="number" step="0.001" id="editAmountExclTax" class="form-control" required>
             </div>
             <div class="form-group">
-              <label class="form-label">TVA Tax Amount</label>
-              <input type="number" step="0.001" id="editTva" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Total Incl. Tax (TTC)</label>
-              <input type="number" step="0.001" id="editAmountInclTax" class="form-control" required>
-            </div>
-            <div class="form-group">
               <label class="form-label">Consumption (kWh)</label>
               <input type="number" step="1" id="editKwhConsumed" class="form-control" required>
             </div>
           </div>
+
+          <!-- Tariff Breakdown (STEG OCR Expansion) -->
+          <details style="margin-top:1rem;">
+            <summary
+              style="cursor:pointer; list-style:none; display:flex; align-items:center; gap:0.5rem; color:var(--accent-cyan); font-size:0.83rem; font-weight:600; padding:0.5rem 0; border-top:1px solid var(--border-color);">
+              <i class="fa-solid fa-table-list"></i> Tableau de Consommation (Tariff Breakdown)
+              <i class="fa-solid fa-chevron-down" style="margin-left:auto; font-size:0.72rem;"></i>
+            </summary>
+            <div style="margin-top:0.6rem; overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead>
+                  <tr style="color:var(--text-muted);">
+                    <th style="text-align:left; padding:0.3rem 0.4rem;">P&eacute;riode</th>
+                    <th style="padding:0.3rem 0.4rem;">Consommation (kWh)</th>
+                    <th style="padding:0.3rem 0.4rem;">P.U. (millimes)</th>
+                    <th style="padding:0.3rem 0.4rem;">Montant (TND)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Jour</td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="editConsJour"
+                        class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="editPuJour"
+                        class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0" id="editMontantJour"
+                        class="form-control"
+                        style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);" value="0"></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Pointe</td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="editConsPointe"
+                        class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="editPuPointe"
+                        class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0" id="editMontantPointe"
+                        class="form-control"
+                        style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);" value="0"></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Soir&eacute;e</td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="editConsSoiree"
+                        class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="editPuSoiree"
+                        class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0" id="editMontantSoiree"
+                        class="form-control"
+                        style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);" value="0"></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0.25rem 0.4rem; color:var(--text-dim); font-weight:600;">Nuit</td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="editConsNuit"
+                        class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="1" min="0" id="editPuNuit"
+                        class="form-control" style="padding:0.2rem 0.35rem; font-size:0.8rem;" value="0"></td>
+                    <td style="padding:0.2rem 0.3rem;"><input type="number" step="0.001" min="0" id="editMontantNuit"
+                        class="form-control"
+                        style="padding:0.2rem 0.35rem; font-size:0.8rem; font-family:var(--font-mono);" value="0"></td>
+                  </tr>
+                </tbody>
+              </table>
+              <!-- Summary rows -->
+              <div
+                style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:0.6rem; padding:0.6rem; background:rgba(0,242,254,0.04); border-radius:var(--radius-sm); border:1px solid rgba(0,242,254,0.1);">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.73rem;">Sous Total (TND)</label>
+                  <input type="number" step="0.001" min="0" id="editSousTotal" class="form-control"
+                    style="font-size:0.8rem; font-family:var(--font-mono);">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.73rem;">Total 1 (TND)</label>
+                  <input type="number" step="0.001" min="0" id="editTotal1" class="form-control"
+                    style="font-size:0.8rem; font-family:var(--font-mono);">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.73rem;">Total 2 (TND)</label>
+                  <input type="number" step="0.001" min="0" id="editTotal2" class="form-control"
+                    style="font-size:0.8rem; font-family:var(--font-mono);">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.73rem;">Total 3 / Taxes (TND)</label>
+                  <input type="number" step="0.001" min="0" id="editTotal3" class="form-control"
+                    style="font-size:0.8rem; font-family:var(--font-mono);">
+                </div>
+                <div class="form-group" style="margin:0; grid-column:1/-1;">
+                  <label class="form-label" style="font-size:0.73rem; color:var(--accent-emerald);"><i
+                      class="fa-solid fa-circle-check"></i> NET &Agrave; PAYER (TND)</label>
+                  <input type="number" step="0.001" min="0" id="editNetAPayer" class="form-control"
+                    style="font-size:0.9rem; font-family:var(--font-mono); font-weight:700; color:var(--accent-emerald); border-color:rgba(52,211,153,0.3);">
+                </div>
+              </div>
+            </div>
+          </details>
+
           <div class="modal-footer" style="margin-top: 1.5rem; padding: 0;">
             <button type="button" class="btn btn-secondary" onclick="UI.closeModal('editInvoiceModal')">Cancel</button>
-            <button type="submit" class="btn btn-glow-primary"><i class="fa-solid fa-floppy-disk"></i> Save & Submit for Validation</button>
+            <button type="submit" class="btn btn-glow-primary"><i class="fa-solid fa-floppy-disk"></i> Save &amp; Submit
+              for Validation</button>
           </div>
         </form>
       </div>
@@ -838,21 +1284,25 @@
     </div>
   </div>
 
-  <!-- Authentication Modal (Login / Sign Up) -->
+  <!-- Authentication Modal (Login / Create Account) -->
   <div id="authModal" class="modal-overlay">
     <div class="modal-card modal-card-auth">
       <div class="modal-header">
-        <h3 class="modal-title gradient-text"><i class="fa-solid fa-bolt-lightning"></i> STEG Access Portal</h3>
+        <h3 class="modal-title gradient-text"><i class="fa-solid fa-bolt-lightning"></i> InvoiceFlow Access Portal</h3>
         <button onclick="Auth.closeAuth()" class="btn-close-modal">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
       <div class="modal-body">
         <div id="authErrorBox" class="auth-error-box" style="display: none;"></div>
+
         <div class="auth-tabs">
-          <button class="auth-tab-btn active" data-auth-tab="login" onclick="Auth.switchAuthTab('login')">Login</button>
-          <button class="auth-tab-btn" data-auth-tab="register" onclick="Auth.switchAuthTab('register')">Sign
-            Up</button>
+          <button type="button" class="auth-tab-btn active" data-auth-tab="login" onclick="Auth.switchAuthTab('login')">
+            Login
+          </button>
+          <button type="button" class="auth-tab-btn" data-auth-tab="register" onclick="Auth.switchAuthTab('register')">
+            Create Account
+          </button>
         </div>
 
         <form id="loginForm" class="auth-form" autocomplete="on">
@@ -872,7 +1322,8 @@
         <form id="registerForm" class="auth-form" style="display: none;" autocomplete="on">
           <div class="form-group">
             <label class="form-label">Full Name</label>
-            <input type="text" id="registerName" class="form-control" placeholder="Your full name" required>
+            <input type="text" id="registerName" class="form-control" placeholder="Your full name" minlength="2"
+              required>
           </div>
           <div class="form-group">
             <label class="form-label">Email Address</label>
@@ -881,34 +1332,43 @@
           <div class="grid-cols-2" style="grid-template-columns: 1fr 1fr; gap: 0.85rem;">
             <div class="form-group">
               <label class="form-label">Password</label>
-              <input type="password" id="registerPassword" class="form-control" placeholder="Min. 6 chars" required>
+              <input type="password" id="registerPassword" class="form-control" placeholder="Min. 6 chars" minlength="6"
+                required>
             </div>
             <div class="form-group">
               <label class="form-label">Confirm Password</label>
-              <input type="password" id="registerConfirm" class="form-control" placeholder="Repeat password" required>
+              <input type="password" id="registerConfirm" class="form-control" placeholder="Repeat password"
+                minlength="6" required>
             </div>
           </div>
           <button type="submit" class="btn btn-glow-primary btn-lg" style="width: 100%;">
             <i class="fa-solid fa-user-plus"></i> Create Account
           </button>
+          <p class="auth-hint">Your account will be available after administrator approval.</p>
         </form>
 
         <p class="auth-hint">
           <i class="fa-solid fa-circle-info"></i> Demo accounts — password <span
             style="font-family: var(--font-mono);">demo123</span><br>
-          <span style="font-family: var(--font-mono);">sami.rejeb@steg.tn</span> (user) · <span
-            style="font-family: var(--font-mono);">admin.validation@steg.tn</span> (admin)
+          <span style="font-family: var(--font-mono);">sami.rejeb@invoiceflow.tn</span> (user) &middot; <span
+            style="font-family: var(--font-mono);">admin.validation@invoiceflow.tn</span> (admin)
         </p>
       </div>
     </div>
   </div>
 
   <!-- JavaScript Modules -->
-  <script src="front/js/ui-utils.js?v=20260818-address"></script>
-  <script src="front/js/auth.js?v=20260818-address"></script>
-  <script src="front/js/dashboard.js?v=20260818-address"></script>
-  <script src="front/js/admin.js?v=20260818-address"></script>
-  <script src="front/js/app.js?v=20260818-address"></script>
+  <script src="front/js/ui-utils.js?v=20260825-admin-breakdown"></script>
+  <script src="front/js/auth.js?v=20260901-pbi-v2"></script>
+  <script src="front/js/dashboard.js?v=20260825-admin-breakdown"></script>
+  <script src="front/js/admin.js?v=20260825-admin-breakdown"></script>
+  <!-- Power BI Client SDK (enables RLS token injection without page reload) -->
+  <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.min.js"></script>
+  <script src="front/js/analytics.js?v=20260901-pbi-v2"></script>
+  <!-- Markdown renderer for AI chatbot responses -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+  <script src="front/js/chatbot.js?v=20260831-markdown"></script>
+  <script src="front/js/app.js?v=20260901-pbi-v2"></script>
 </body>
 
 </html>

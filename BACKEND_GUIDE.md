@@ -1,19 +1,19 @@
 # Backend Architecture & Functional Guide
 
-This document provides a comprehensive, deep-dive reference for the STEG InvoiceFlow FastAPI backend. It details the purpose of each file, the exact function signatures, **what activates/triggers each function**, **why specific methods/patterns were chosen**, and **concrete usage examples**.
+This document provides a comprehensive, deep-dive reference for the InvoiceFlow FastAPI backend. It details the purpose of each file, the exact function signatures, **what activates/triggers each function**, **why specific methods/patterns were chosen**, and **concrete usage examples**.
 
 ---
 
 ## 1. Core Architecture & Stack Rationale
 
-The backend is built as a high-performance REST API connected to an enterprise SQL Server database (via LocalDB `MSSQLLocalDB` or standalone SQL Server instances).
+The backend is built as a high-performance REST API connected to an enterprise SQL Server database (via LocalDB `MSSQLLocalDB` or standalone SQL Server instances) for the InvoiceFlow application.
 
 ### Technology Selection Rationale:
 - **FastAPI**: Chosen over Flask/Django for high-performance asynchronous request handling, automatic OpenAPI schema generation, strict type safety via Python type annotations, and built-in dependency injection (`Depends`).
 - **SQLAlchemy ORM (v2.0)**: Selected to decouple database logic from raw SQL string manipulations while maintaining full support for enterprise SQL Server features (ODBC connectivity, transactions, foreign key cascades).
 - **Pydantic (v2.0)**: Used for strong request payload parsing and response serialization, guaranteeing that incoming JSON payload structures strictly conform to application domain models.
 - **PyJWT & Bcrypt**: Implemented for stateless, scalable authentication. Passwords are hashed using salted bcrypt key derivation (`bcrypt.gensalt()`), and user sessions are managed statelessly via signed JWT bearer tokens (`HS256`).
-- **PyTesseract & Poppler-utils**: Integrated for document OCR preprocessing and text recognition, extracting billing figures directly from digital and scanned PDF/image invoices.
+- **PyTesseract & Poppler-utils**: Integrated for document OCR preprocessing and text recognition, extracting billing figures directly from digital and scanned PDF/image invoices for InvoiceFlow processing.
 
 ---
 
@@ -75,7 +75,7 @@ Serves as the root entry point for the FastAPI server. It initializes the app in
   curl -X GET http://127.0.0.1:8000/health
   ```
   ```json
-  {"status": "ok", "service": "steg-backend", "version": "1.0.0"}
+  {"status": "ok", "service": "invoiceflow-backend", "version": "1.0.0"}
   ```
 
 ---
@@ -158,7 +158,7 @@ Manages SQLAlchemy engine creation, DB session creation (`SessionLocal`), initia
 ---
 
 #### Function: `run_migrations()`
-- **What it does**: Executes idempotent raw DDL/DML statements to alter existing tables (adding missing columns like `kwh_consumed`, `due_date`, `account_status`), updating legacy records, and switching timestamp default constraints from UTC to local server time (`DEFAULT (getdate())`).
+- **What it does**: Executes idempotent raw DDL/DML statements to alter existing tables (adding missing columns like `kwh_consumed` and `account_status`), updating legacy records, and switching timestamp default constraints from UTC to local server time (`DEFAULT (getdate())`).
 - **Activation Trigger**: Invoked by `init_db()` during startup.
 - **Why this method?**: Allows lightweight schema evolution without introducing complex migration frameworks (like Alembic) for straightforward application requirements.
 
@@ -252,7 +252,7 @@ Defines SQLAlchemy ORM mapped entities corresponding to database tables: `Users`
 
 #### Class: `Invoice(Base)`
 - **Table Name**: `Invoices`
-- **Columns**: `invoice_id` (PK), `user_id` (FK -> `Users.user_id`), `file_path`, `supplier`, `invoice_no`, `invoice_date`, `amount_excl_tax`, `tva`, `amount_incl_tax`, `currency`, `kwh_consumed`, `due_date`, `status`, `uploaded_at`.
+- **Columns**: `invoice_id` (PK), `user_id` (FK -> `Users.user_id`), `file_path`, `supplier`, `invoice_no`, `invoice_date`, `amount_excl_tax`, `currency`, `kwh_consumed`, `status`, `uploaded_at`, `net_a_payer`.
 - **Property `file_name`**: Computes basename from `file_path` (e.g. `uploads/abc.pdf` -> `abc.pdf`).
 - **Relationships**: `owner` (many-to-one with `User`), `demand` (one-to-one with `Demand`, cascade delete).
 
@@ -279,7 +279,7 @@ Defines Pydantic request and response models used for input validation, sanitiza
 - **`LoginRequest`**: Validates login credentials (`email`, `password`).
 - **`UserOut`**: Wire response schema for user identity (`user_id`, `full_name`, `email`, `role`, `account_status`, `created_at`). Configured with `from_attributes = True`.
 - **`AuthResponse`**: Response containing `access_token`, `token_type = "bearer"`, and nested `user: UserOut`.
-- **`InvoiceValuesUpdate`**: Payload submitted when user confirms extracted OCR values (`supplier`, `invoice_no`, `invoice_date`, `amount_excl_tax`, `tva`, `amount_incl_tax`, `currency`, `kwh_consumed`, `due_date`).
+- **`InvoiceValuesUpdate`**: Payload submitted when user confirms extracted OCR values (`supplier`, `invoice_no`, `invoice_date`, `amount_excl_tax`, `net_a_payer`, `currency`, `kwh_consumed`).
 - **`InvoiceOut`**: Complete wire output format for an invoice merged with its associated `demand_id` and `demand_status`.
 - **`DemandDecision`**: Payload for admin review decision (`status: Field(pattern="^(approved|validated|rejected)$")`).
 - **`DashboardStats`**: Aggregated statistics summary (`total_invoices`, `pending_demands`, `validated_demands`, `total_kwh`).
@@ -321,7 +321,7 @@ Contains application service helpers for file upload persistence and audit trail
 ### 3.9 `back/ocr_service.py`
 
 **File Overview**:
-Implements optical character recognition (OCR) and PDF parsing pipelines using PyTesseract, Poppler (`pdf2image`), and regular expressions tailored for STÈG utility invoices.
+Implements optical character recognition (OCR) and PDF parsing pipelines using PyTesseract, Poppler (`pdf2image`), and regular expressions tailored for utility invoices.
 
 ---
 
@@ -329,8 +329,8 @@ Implements optical character recognition (OCR) and PDF parsing pipelines using P
 - **What it does**:
   1. Checks if input file is PDF or image. If PDF, converts first page to image using `pdf2image.convert_from_path()`.
   2. Runs Tesseract OCR engine (`pytesseract.image_to_string()`) with French/Arabic language support.
-  3. Applies specialized regular expressions to parse STÈG fields:
-     - `facture`: Regex search for invoice number (e.g. `2026-STEG-77491`).
+  3. Applies specialized regular expressions to parse invoice fields:
+     - `facture`: Regex search for the invoice number.
      - `date`: Billing date string extraction.
      - `montant_ht`, `total_3_taxes`, `montant_ttc`: Financial amounts parsed into floats.
   4. Returns dictionary containing raw OCR output, parsed fields, confidence metric, and mapped values ready for database insertion.
@@ -342,7 +342,7 @@ Implements optical character recognition (OCR) and PDF parsing pipelines using P
 ### 3.10 `back/seed.py`
 
 **File Overview**:
-Seeds demo accounts and sample STÈG invoices idempotently on initial application setup.
+Seeds the two demo accounts idempotently on initial application setup; sample invoice seeding is disabled.
 
 ---
 
@@ -351,9 +351,9 @@ Seeds demo accounts and sample STÈG invoices idempotently on initial applicatio
 
 #### Function: `seed(db: Session)`
 - **What it does**: Seeds demo accounts:
-  - User: `sami.rejeb@steg.tn`
-  - Admin: `admin.validation@steg.tn`
-  Seeds 3 sample STÈG invoices (`2026-STEG-77491`, `2026-STEG-55120`, `2026-STEG-33910`) with corresponding demands (`pending`, `approved`) and audit logs if the user has 0 invoices.
+  - User: `sami.rejeb@invoiceflow.tn`
+  - Admin: `admin.validation@invoiceflow.tn`
+  Seeds only the two demo accounts. Sample invoice seeding is disabled.
 - **Activation Trigger**: Called by app `lifespan` on startup if `settings.SEED` is enabled.
 
 ---
@@ -379,7 +379,7 @@ Contains API endpoints for user registration, authentication, session identity r
   ```bash
   curl -X POST http://127.0.0.1:8000/auth/register \
     -H "Content-Type: application/json" \
-    -d '{"full_name": "New User", "email": "user@steg.tn", "password": "password123"}'
+    -d '{"full_name": "New User", "email": "user@invoiceflow.tn", "password": "password123"}'
   ```
 
 ---

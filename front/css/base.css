@@ -1,7 +1,9 @@
 /* ==========================================================================
-   STEG Facture Platform - Base & Mesh Styles
+   InvoiceFlow Platform - Base Foundation & Global Styles
+   Modern, Clean, Professional Design System
    ========================================================================== */
 
+/* ========== CSS RESET & BASE ========== */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -12,54 +14,90 @@ html {
   font-size: 16px;
   scroll-behavior: smooth;
   height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   font-family: var(--font-body);
   background-color: var(--bg-primary);
-  color: var(--text-main);
-  line-height: 1.5;
+  color: var(--text-primary);
+  line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
-  -webkit-font-smoothing: antialiased;
 }
 
-/* Background Ambient Mesh Grid */
+/* ========== BACKGROUND SYSTEM ========== */
 .bg-mesh-grid {
   position: fixed;
   inset: 0;
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(2, 132, 199, 0.04), transparent 35%),
-    radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.04), transparent 40%);
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(14, 165, 233, 0.05), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(37, 99, 235, 0.05), transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.03), transparent 50%);
   z-index: 0;
   pointer-events: none;
 }
 
 .bg-glow-orb {
-  display: none; /* Removed heavy pulsing glowing orbs for clean professional corporate look */
+  display: none; /* Clean professional look without distracting orbs */
 }
 
-/* Typography Hierarchy */
+/* ========== TYPOGRAPHY SYSTEM ========== */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--text-main);
+  color: var(--text-primary);
+  line-height: 1.3;
 }
 
-.gradient-text {
+h1 { font-size: 2.25rem; }
+h2 { font-size: 1.875rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+h5 { font-size: 1.125rem; }
+h6 { font-size: 1rem; }
+
+p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+a {
   color: var(--accent-cyan);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--accent-primary);
+}
+
+/* Special Text Utilities */
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   font-weight: 800;
 }
 
 .neon-text {
   color: var(--accent-cyan);
   font-weight: 800;
+  text-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
 }
 
+.text-cyan { color: var(--accent-cyan); }
+.text-emerald { color: var(--accent-emerald); }
+.text-amber { color: var(--accent-amber); }
+.text-rose { color: var(--accent-rose); }
+.text-muted { color: var(--text-muted); }
+.text-dim { color: var(--text-dim); }
 
-/* App Container Layout */
+/* ========== LAYOUT SYSTEM ========== */
 .app-container {
   display: flex;
   min-height: 100vh;
@@ -76,55 +114,67 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .content-body {
-  padding: 2.25rem;
+  padding: 2.5rem;
   flex: 1;
+  max-width: var(--content-max-width);
+  width: 100%;
+  margin: 0 auto;
 }
 
-/* Glassmorphism Card Utility */
+/* View Section Container */
+.view-section {
+  width: 100%;
+}
+
+/* ========== GLASS CARD SYSTEM ========== */
 .glass-card {
-  background: rgba(17, 24, 39, 0.7);
+  background: var(--bg-card);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
 }
 
 .glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  transform: translateY(-2px);
+  border-color: var(--border-hover);
   box-shadow: var(--shadow-lg);
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-full);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-cyan);
-}
+/* ========== UTILITY CLASSES ========== */
 
-/* Flex & Grid Utilities */
+/* Flex Utilities */
 .flex-between {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-start {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+/* Grid Utilities */
 .grid-cols-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.grid-cols-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
 }
 
@@ -134,17 +184,194 @@ h1, h2, h3, h4, h5, h6 {
   gap: 1.5rem;
 }
 
-@media (max-width: 1100px) {
+/* Responsive Grid Adjustments */
+@media (max-width: 1200px) {
   .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-cols-3 {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .grid-cols-2, .grid-cols-4 {
+  .grid-cols-2, .grid-cols-3, .grid-cols-4 {
     grid-template-columns: 1fr;
   }
+}
+
+/* Spacing Utilities */
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+.mt-xl { margin-top: var(--space-xl); }
+.mt-2xl { margin-top: var(--space-2xl); }
+
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+.mb-xl { margin-bottom: var(--space-xl); }
+.mb-2xl { margin-bottom: var(--space-2xl); }
+
+.gap-sm { gap: var(--space-sm); }
+.gap-md { gap: var(--space-md); }
+.gap-lg { gap: var(--space-lg); }
+.gap-xl { gap: var(--space-xl); }
+
+/* ========== CUSTOM SCROLLBAR ========== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+}
+
+/* ========== SELECTION STYLING ========== */
+::selection {
+  background: rgba(14, 165, 233, 0.25);
+  color: var(--text-primary);
+}
+
+::-moz-selection {
+  background: rgba(14, 165, 233, 0.25);
+  color: var(--text-primary);
+}
+
+/* ========== FOCUS RING SYSTEM ========== */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* ========== PRINT STYLES ========== */
+@media print {
+  .sidebar,
+  .topbar,
+  .btn,
+  .modal-overlay {
+    display: none !important;
+  }
+
+  .main-content {
+    margin: 0;
+    padding: 0;
+  }
+
+  .glass-card {
+    border: 1px solid #ddd;
+    box-shadow: none;
+  }
+}
+
+/* ========== ACCESSIBILITY HELPERS ========== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip to content link */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent-cyan);
+  color: white;
+  padding: 0.5rem 1rem;
+  z-index: 9999;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.skip-to-content:focus {
+  top: 0.5rem;
+  left: 0.5rem;
+}
+
+/* ========== LOADING STATES ========== */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ========== RESPONSIVE UTILITIES ========== */
+.mobile-only {
+  display: none;
+}
+
+.desktop-only {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
   .content-body {
     padding: 1.25rem;
+  }
+
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+}
+
+/* ========== PERFORMANCE OPTIMIZATIONS ========== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

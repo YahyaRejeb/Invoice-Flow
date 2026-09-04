@@ -1,7 +1,7 @@
 """Database engine, session factory and startup bootstrap.
 
-- Connects to SQL Server (Windows trusted auth) on the LocalDB MSSQLLocalDB
-  instance by default, against the existing StegDB schema.
+- Connects to SQL Server (Windows trusted auth) on the SE7LLI instance by
+  default, against the existing StegDB schema.
 - Creates StegDB automatically the first time if it is missing.
 - Runs idempotent additive migrations (nothing destructive) so the tables stay
   compatible with the frontend even after the schema was built manually in SSMS.
@@ -13,15 +13,13 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from config import settings, UPLOADS_DIR
 
-logger = logging.getLogger("steg.database")
+logger = logging.getLogger("invoiceflow.database")
 
 MIGRATIONS = (
     # Extra columns used by the frontend/dashboard that are not in the manually
     # created Invoices table yet. Both are additive and safe to re-run.
     "IF COL_LENGTH('dbo.Invoices', 'kwh_consumed') IS NULL "
     "ALTER TABLE [Invoices] ADD [kwh_consumed] INT NULL;",
-    "IF COL_LENGTH('dbo.Invoices', 'due_date') IS NULL "
-    "ALTER TABLE [Invoices] ADD [due_date] DATE NULL;",
     "IF COL_LENGTH('dbo.Invoices', 'address') IS NULL "
     "ALTER TABLE [Invoices] ADD [address] NVARCHAR(255) NULL;",
     "IF COL_LENGTH('dbo.Users', 'account_status') IS NULL "
@@ -70,7 +68,7 @@ IF @cn IS NOT NULL EXEC('ALTER TABLE [dbo].[AuditLogs] DROP CONSTRAINT [' + @cn 
 ALTER TABLE [dbo].[AuditLogs] ADD CONSTRAINT [DF_AuditLogs_timestamp_local] DEFAULT (getdate()) FOR [timestamp];
 """,
     # -----------------------------------------------------------------
-    # STEG OCR Expansion: detailed tariff breakdown columns
+    # InvoiceFlow OCR Expansion: detailed tariff breakdown columns
     # -----------------------------------------------------------------
     # Consommation per tariff period (INTEGER)
     "IF COL_LENGTH('dbo.Invoices', 'consumption_jour') IS NULL "
@@ -110,6 +108,25 @@ ALTER TABLE [dbo].[AuditLogs] ADD CONSTRAINT [DF_AuditLogs_timestamp_local] DEFA
     "ALTER TABLE [Invoices] ADD [total_3] DECIMAL(15,3) NULL;",
     "IF COL_LENGTH('dbo.Invoices', 'net_a_payer') IS NULL "
     "ALTER TABLE [Invoices] ADD [net_a_payer] DECIMAL(15,3) NULL;",
+    # Backfill the aggregate consumption for invoices created before the OCR
+    # calculation was added. Re-running is harmless because only zero/NULL
+    # aggregates are corrected.
+    "UPDATE [dbo].[Invoices] "
+    "SET [kwh_consumed] = COALESCE([consumption_jour], 0) "
+    "+ COALESCE([consumption_pointe], 0) "
+    "+ COALESCE([consumption_soiree], 0) "
+    "+ COALESCE([consumption_nuit], 0) "
+    "WHERE [kwh_consumed] IS NULL OR [kwh_consumed] = 0;",
+    # Remove the old demo invoice rows and their dependent workflow records.
+    "DELETE al FROM [dbo].[AuditLogs] al "
+    "INNER JOIN [dbo].[Demands] d ON d.demand_id = al.demand_id "
+    "INNER JOIN [dbo].[Invoices] i ON i.invoice_id = d.invoice_id "
+    "WHERE i.invoice_no IN ('2026-INV-77491', '2026-INV-55120', '2026-INV-33910');",
+    "DELETE d FROM [dbo].[Demands] d "
+    "INNER JOIN [dbo].[Invoices] i ON i.invoice_id = d.invoice_id "
+    "WHERE i.invoice_no IN ('2026-INV-77491', '2026-INV-55120', '2026-INV-33910');",
+    "DELETE FROM [dbo].[Invoices] "
+    "WHERE invoice_no IN ('2026-INV-77491', '2026-INV-55120', '2026-INV-33910');",
 )
 
 
@@ -169,6 +186,47 @@ def run_migrations() -> None:
     logger.info("Schema migrations applied")
 
 
+def cleanup_demo_data() -> None:
+    """Remove stale demo invoices and related workflow rows inserted during testing."""
+    with engine.begin() as conn:
+        conn.execute(text("""
+            DELETE al
+            FROM [dbo].[AuditLogs] al
+            INNER JOIN [dbo].[Demands] d ON d.demand_id = al.demand_id
+            INNER JOIN [dbo].[Invoices] i ON i.invoice_id = d.invoice_id
+            WHERE i.supplier = 'STEG'
+              AND (
+                    i.invoice_no LIKE '2026-INV-%'
+                 OR i.invoice_no LIKE 'DEMO-%'
+                 OR i.invoice_no LIKE 'SAMPLE-%'
+                 OR i.invoice_no LIKE 'EXP-%'
+              );
+        """))
+        conn.execute(text("""
+            DELETE d
+            FROM [dbo].[Demands] d
+            INNER JOIN [dbo].[Invoices] i ON i.invoice_id = d.invoice_id
+            WHERE i.supplier = 'STEG'
+              AND (
+                    i.invoice_no LIKE '2026-INV-%'
+                 OR i.invoice_no LIKE 'DEMO-%'
+                 OR i.invoice_no LIKE 'SAMPLE-%'
+                 OR i.invoice_no LIKE 'EXP-%'
+              );
+        """))
+        conn.execute(text("""
+            DELETE FROM [dbo].[Invoices]
+            WHERE supplier = 'STEG'
+              AND (
+                    invoice_no LIKE '2026-INV-%'
+                 OR invoice_no LIKE 'DEMO-%'
+                 OR invoice_no LIKE 'SAMPLE-%'
+                 OR invoice_no LIKE 'EXP-%'
+              );
+        """))
+    logger.info("Demo invoice data cleaned up")
+
+
 def init_db() -> None:
     """Bootstrap the database: create tables, then apply additive migrations."""
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -178,4 +236,5 @@ def init_db() -> None:
     # Create any missing tables first so additive migrations can target them.
     Base.metadata.create_all(bind=engine)
     run_migrations()
-    logger.info("StegDB ready")
+    cleanup_demo_data()
+    logger.info("StegDB ready (InvoiceFlow application)")
